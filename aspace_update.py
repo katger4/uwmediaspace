@@ -34,7 +34,7 @@ def import_data(item_list):
 
 ############################################################
 
-filename = input("Enter the path to the data file containing the structured list of records to update on ASpace (usually the output of another script e.g. ./data/inverted_agents.txt): ")
+filename = input("Enter the path to the data file containing the structured list of records to update on ASpace (usually the output of another script e.g. ./data/updates.txt): ")
 
 item_list = load_pickled(filename)
 
