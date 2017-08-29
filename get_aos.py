@@ -5,7 +5,7 @@ import requests
 from progress.spinner import Spinner
 import pickle
 
-# this python script takes extracts erroneous container information from archival objects in a series in an ASpace resource and converts them to digital objects for import to ASpace, maintaining links to the original records
+# this python script downloads the archival objects of a given resource-series for use in other scripts
 
 ############################################################
 
@@ -60,46 +60,9 @@ while state != 'FINISHED':
 
 print(' successfully downloaded '+str(len(mr_aos))+' archival objects')
 
-# extract filenames from instance list
-# create digital object records
-new_title = input("Create new digital object title? (y/n) ")
-if new_title == 'y':
-    do_title = input("Enter the new digital object title prefix (e.g. Ryan Reel): ")
-
-# create a dict of (filename,reel): [uris] for each digital object
-# grouping together archival objects pointing to the same DO (if applicable)
-# otherwise, each AO gets its own DO
-dos = {}
-for i in mr_aos:
-    if 'indicator_3' in i['instances'][0]['sub_container']:
-        filename = i['instances'][0]['sub_container']['indicator_3']
-
-        if do_title:
-            title = do_title+' '+i['instances'][0]['sub_container']['indicator_2']
-        else:
-            title = i['title']
-
-        key = (filename, title)
-        if key not in dos:
-            dos[key] = [{'ref': i['uri']}]
-        else:
-            dos[key].append({'ref': i['uri']})
-
-# use the information in the dict created above to output a list of DOs
-# formatted for import into ASpace
-digital_objects = []
-for key,uris in dos.items():
-    digital_objects.append({'digital_object_id': key[0],
-                            'jsonmodel_type': 'digital_object',
-                            'linked_instances': uris,
-                            'repository': {'ref': '/repositories/'+repository},
-                            'title': key[1]})
-
-# sort the DO list by title
-digital_objects = sorted(digital_objects, key=lambda k: k['title']) 
-
-print('successfully created '+str(len(digital_objects))+' digital objects!')
-
-output = input("enter the path and name of the data file to store your saved digital objects in (e.g. ./data/digi_objects.txt): ")
-write_pickle(digital_objects, output)
+output = input("enter the path and name of the data file to store your saved archival objects in (e.g. ./data/mr_aos.txt): ")
+write_pickle(mr_aos, output)
 print('data saved!')
+
+
+
