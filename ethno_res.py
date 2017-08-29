@@ -5,7 +5,7 @@ import requests
 from progress.spinner import Spinner
 import pickle
 
-# this python script takes in all agent-people from ASpace and outputs that same list (or that list limited to a specific name-source) with all names corrected to have inverted name order (as specified in DACS)
+# this python script downloads all ethnomusicology resources from the ASpace API for use in other scripts
 
 ############################################################
 
@@ -50,8 +50,8 @@ while state != 'FINISHED':
         spinner.next()
     state = 'FINISHED'
 
-print(' successfully downloaded '+str(len(all_ppl))+' resources')
+print(' successfully downloaded '+str(len(eth_list))+' resources')
 
-output = input("enter the path and name of the data file to store your saved agents in (e.g. ./data/ethno.txt): ")
+output = input("enter the path and name of the data file to store your saved resources in (e.g. ./data/ethno.txt): ")
 write_pickle(eth_list, output)
 print('data saved!')

@@ -37,7 +37,7 @@ filename = input("Enter the path to the data file containing the structured list
 
 item_list = load_pickled(filename)
 
-import_type = input("Enter the type of new records to be created in ASpace (options are: subjects, people, corporate_entites, resources, or archival_objects): ")
+import_type = input("Enter the type of new records to be created in ASpace (options are: subjects, people, corporate_entites, resources, digital_objects, or archival_objects): ")
 
 if import_type == 'subjects':
 	location = '/subjects'
@@ -51,6 +51,9 @@ elif import_type == 'resources':
 elif import_type == 'archival_objects':
     repo = input('Enter the repository id to add these items to (hint: Ethnomusicology = 2, Media = 4): ')
 	location = '/repositories/'+repo+'/archival_objects'
+elif import_type == 'digital_objects':
+    repo = input('Enter the repository id to add these items to (hint: Ethnomusicology = 2, Media = 4): ')
+    location = '/repositories/'+repo+'/digital_objects'
 else:
 	print('Invalid item type given, please try again.')
     location = None
