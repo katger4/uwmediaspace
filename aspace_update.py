@@ -17,7 +17,7 @@ def post_item(item, location):
     return postItem.json()
 
 def import_data(item_list):
-    spinner = Spinner('Importing items...')
+    spinner = Spinner('Updating items...')
     state = 'loading'
     while state != 'FINISHED':
         for idx,item in enumerate(item_list):
@@ -26,7 +26,8 @@ def import_data(item_list):
             if 'error' in posted.keys():
                 print(('List item number: '+str(idx)+' was not posted! See error message. ',posted))
                 next_item = idx+1
-                print('Next list item to post will be '+item_list[next_item])
+                print('Next list item to post will be: ')
+                print(item_list[next_item])
                 break
         state = 'FINISHED'
     print('Import complete.')

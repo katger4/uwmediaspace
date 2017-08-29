@@ -26,7 +26,8 @@ def import_data(item_list):
             if 'error' in posted.keys():
                 print(('List item number: '+str(idx)+' was not posted! See error message. ',posted))
                 next_item = idx+1
-                print('Next list item to post will be '+item_list[next_item])
+                print('Next list item to post will be: ')
+                print(item_list[next_item])
                 break
         state = 'FINISHED'
     print('Import complete.')
@@ -50,12 +51,12 @@ elif import_type == 'resources':
     location = '/repositories/'+repo+'/resources'
 elif import_type == 'archival_objects':
     repo = input('Enter the repository id to add these items to (hint: Ethnomusicology = 2, Media = 4): ')
-	location = '/repositories/'+repo+'/archival_objects'
+    location = '/repositories/'+repo+'/archival_objects'
 elif import_type == 'digital_objects':
     repo = input('Enter the repository id to add these items to (hint: Ethnomusicology = 2, Media = 4): ')
     location = '/repositories/'+repo+'/digital_objects'
 else:
-	print('Invalid item type given, please try again.')
+    print('Invalid item type given, please try again.')
     location = None
 
 if location != None:
