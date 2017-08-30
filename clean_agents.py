@@ -63,9 +63,13 @@ elif 'corp' in filename:
 		if 'subordinate_name_1' in agent['display_name']:
 			agent['display_name']['subordinate_name_1'] = agent['names'][0]['subordinate_name_1']
 		updates.append(agent)
+else:
+	print('Unknown filename entered, please use ./data/people.txt or ./data/corp.txt')
 
 print('successfully cleaned up '+str(len(updates))+' agent names')
 
-output = input("enter the path and name of the data file to store your saved agents in (e.g. ./data/updates.txt): ")
-write_pickle(updates, output)
-print('data saved!')
+if updates != []:
+	output = input("enter the path and name of the data file to store your saved agents in (e.g. ./data/updates.txt): ")
+	write_pickle(updates, output)
+	print('data saved!')
+	
