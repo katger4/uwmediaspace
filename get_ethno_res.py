@@ -36,8 +36,8 @@ else:
 print('loading all ethnomusicology resource IDs...')
 # get the ids of each ethno resource
 eth_ids = get_item('/repositories/2/resources?all_ids=True')
-# id2 = test resource; id4 = barton
-eth_ids = [i for i in eth_ids if i not in [2,4]]
+# id2 = test resource; id4 = barton; control for future additions
+eth_ids = [i for i in eth_ids if i in list(range(5,2998))]
 
 spinner = Spinner('loading all ethnomusicology resources...')
 state = 'loading'
