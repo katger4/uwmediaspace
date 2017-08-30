@@ -8,6 +8,12 @@ import xmltodict
 
 ############################################################
 
+def is_digi(year):
+    if year.isdigit() and year > '2008':
+        return True
+    else:
+        return False
+
 def dict2xmlstr(mergeddata,pretty=False):
     fulltext = json.dumps(mergeddata)
     jsonObj = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(fulltext)
@@ -36,8 +42,18 @@ doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
 # remove unnecessary extref tag
 doc['ead']['eadheader']['filedesc']['publicationstmt'].pop('extref')
 
+# locate the series containing archival objects
+series = doc['ead']['archdesc']['dsc']['c01']
+
+title = input("enter the title of the series containing archival objects (e.g. Sound Recordings): ")
+
+for idx,i in enumerate(series):
+    if title in i['did']['unittitle']['#text']:
+        seriesidx = idx
+
 # remove extra dao tags and make sure all scopecontent has a p tag
-for d in doc['ead']['archdesc']['dsc']['c01'][0]['c02']:
+# remove digitization dates (dont show up in AW as different dates)
+for d in series[seriesidx]['c02']:
     if 'dao' in d['did']:
         d['did']['dao'].pop('@actuate')
         d['did']['dao'].pop('@type')
@@ -48,6 +64,23 @@ for d in doc['ead']['archdesc']['dsc']['c01'][0]['c02']:
             d['scopecontent']['p'] = {}
             d['scopecontent']['p'] = d['scopecontent']['#text']
             d['scopecontent'].pop('#text')
+
+    # remove digitization dates for display purposes
+    if 'unitdate' in d['did']:
+        if type(d['did']['unitdate']) != list:
+            year = d['did']['unitdate']['#text'][:4]
+            if is_digi(year) == True:
+                d['did'].pop('unitdate')
+        else:
+            for idx,date in enumerate(d['did']['unitdate']):
+                try:
+                    year = date['#text'][:4]
+                    if is_digi(year) == True:
+                        d['did']['unitdate'].pop(idx)
+                except TypeError:
+                    year = date[:4]
+                    if is_digi(year) == True:
+                        d['did']['unitdate'].pop(idx)
 
 # convert dict to json to xmlstring
 xmlstr = dict2xmlstr(doc, pretty = True)
