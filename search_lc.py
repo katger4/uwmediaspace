@@ -4,6 +4,7 @@ import csv
 import requests
 from bs4 import BeautifulSoup
 from progress.spinner import Spinner
+from fuzzywuzzy import fuzz
 
 # this python script takes a list of name-lcnaf tuples (output from the 'fuzz_names.py' script) and queries the lcnaf database directly for those names that did not match in the viaf.py process by appending likely terms to the search name (e.g. ' (musical group)' or ' (rock group)')
 
@@ -24,11 +25,17 @@ def write_tsv(data, output):
 		for name,lc in data:
 			writer.writerow((name,lc))
 
-def search_lc(name, addition):
-	# create the LoC address
-	name_list = name.split(' ')
+def create_lc_address(name, name_addition):
+	name_list = name[0].split(' ')
 	search_name = '+'.join(name_list)
-	lc_address = "http://id.loc.gov/search/?q="+search_name+"+%28"+addition+"+group%29&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fauthorities%2Fnames"
+
+	if name_addition == '':
+		lc_address = "http://id.loc.gov/search/?q="+search_name+"&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fauthorities%2Fnames"
+	else:
+		lc_address = "http://id.loc.gov/search/?q="+search_name+"+%28"+name_addition+"+group%29&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fauthorities%2Fnames"
+	return lc_address
+
+def search_lc(name, lc_address):
 	# search LoC for that name
 	response = requests.get(lc_address).content
 	# parse search results using bs4
@@ -37,26 +44,38 @@ def search_lc(name, addition):
 	headers = [header.text for header in table.find_all('th',{'scope' :'col'})]
 	rows = [{headers[i]: cell.text for i, cell in enumerate(row.findAll("td"))} for row in table.select("tbody tr")]
 	# create match name variable to check table values against
-	match_name = name.lower()+' ('+addition+' group)'
-	for row in rows:
-		if row['Label'].lower() == match_name:
-			return (name, row['Label'])
+	if name_addition != '':
+		match_name = name.lower()+' ('+name_addition+' group)'
+		for row in rows:
+			if row['Label'].lower() == match_name:
+				return (name, row['Label'])
+	else:
+		match_name = name.lower()
+		for row in rows:
+			ratio = fuzz.token_sort_ratio(row['Label'].lower(), match_name)
+			if ratio >= 70 :
+				return (name, row['Label'])
+				break
+
 
 ############################################################
 
-unlikely = load_csv('./data/unlikely.tsv')
+filename = input("Enter filename of the list of names to search: ")
+unlikely = load_csv(filename)
+# unlikely = load_csv('./data/noID.csv')
 print(len(unlikely))
-
-spinner = Spinner('searching name authority files...')
-state = 'loading'
 
 found_names = []
 
 name_addition = input("Enter the type of name to search for (e.g. musical or rock): ")
 
+spinner = Spinner('searching name authority files...')
+state = 'loading'
+
 while state != 'FINISHED':
 	for name in unlikely:
-		new_match = search_lc(name[0], name_addition)
+		lc_address = create_lc_address(name, name_addition)
+		new_match = search_lc(name[0], lc_address)
 		if new_match != None:
 			found_names.append(new_match)
 			spinner.next()
