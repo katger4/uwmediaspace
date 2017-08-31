@@ -72,37 +72,20 @@ def parse_series(seriesidx):
             else:
                 fix_agent_source(d['did']['origination']['corpname'])
 
-def R_parse_series(num_series, series):
-    title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
-
-    for idx,i in enumerate(series):
-        if title in i['did']['unittitle']['#text']:
-            seriesidx = idx
-
-    parse_series(seriesidx)
-    num_series -= 1
-    return num_series
-
-def multi_series_parse(num_series, series):
-    if num_series > 0:
-         return loop_func(R_parse_series(num_series, series), series)
-    else:
-        return num_series
 ############################################################
 
 # load converted EAD
 # path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
 # repo = input("enter the repository (media or ethno): ")
-# path = './data/wau_uwea_2008012-c.xml'
-path = './data/wau_croctest.xml'
-repo = 'ethno'
+path = './data/wau_uwea_2008012-c.xml'
+
 with open(path) as fd:
     doc = xmltodict.parse(fd.read())
 
 # fix agency codes
-if repo == 'media':
-    doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'waseumc'
-    doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
+# if repo == 'media':
+doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'waseumc'
+doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
 
 # remove unnecessary extref tag if there
 if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
@@ -117,13 +100,52 @@ else:
         name = p['persname']
         fix_agent_source(name)
 
+# fix incorrect subject sources/display settings
+for subject_type in doc['ead']['archdesc']['controlaccess']['controlaccess']:
+    if 'corpname' in subject_type:
+        if type(subject_type['corpname']) is not list:
+            subject_type['corpname']['@source'] = 'lcsh'
+        else:
+            for c in subject_type['corpname']:
+                c['@source'] = 'lcsh'
+    if 'geogname' in subject_type:
+        if type(subject_type['geogname']) is not list and subject_type['geogname']['@source'] == 'archiveswest':
+            subject_type['geogname']['@altrender'] = 'nodisplay'
+        else:
+            for c in subject_type['geogname']:
+                if c['@source'] == 'archiveswest':
+                    c['@altrender'] = 'nodisplay'
+    if 'subject' in subject_type:
+        if type(subject_type['subject']) is not list and subject_type['subject']['@source'] != 'archiveswest':
+            subject_type['subject']['@source'] = 'lcsh'
+        else:
+            for c in subject_type['subject']:
+                if c['@source'] != 'archiveswest':
+                    c['@source'] = 'lcsh'
+    if 'genreform' in subject_type:
+        if type(subject_type['genreform']) is not list and subject_type['genreform']['@source'] == 'archiveswest':
+            subject_type['genreform']['@altrender'] = 'nodisplay'
+        else:
+            for c in subject_type['genreform']:
+                if c['@source'] == 'archiveswest':
+                    c['@altrender'] = 'nodisplay'
+
 # locate the series containing archival objects
 series = doc['ead']['archdesc']['dsc']['c01']
 
 # # indicate how many series of archival objects to parse
-# num_series = int(input("enter the number of series containing archival objects to reformat: "))
-num_series = 2
-multi_series_parse(num_series, series)
+num_series = int(input("enter the number of series containing archival objects to reformat: "))
+# num_series = 2
+
+while num_series > 0:
+    title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
+
+    for idx,i in enumerate(series):
+        if title in i['did']['unittitle']['#text']:
+            seriesidx = idx
+
+    parse_series(seriesidx)
+    num_series -= 1
 
 # convert dict to json to xmlstring
 xmlstr = dict2xmlstr(doc, pretty = True)
