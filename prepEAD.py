@@ -101,9 +101,9 @@ def parse_controlaccess(subject_type):
 ############################################################
 
 # load converted EAD
-# path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
+path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
 # repo = input("enter the repository (media or ethno): ")
-path = './data/wau_waseumc_1971005-c.xml'
+# path = './data/wau_uwea_2008012-c.xml'
 
 with open(path) as fd:
     doc = xmltodict.parse(fd.read())
@@ -117,12 +117,16 @@ doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
 if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
     doc['ead']['eadheader']['filedesc']['publicationstmt'].pop('extref')
 
-# fix origination if wrong
-if type(doc['ead']['archdesc']['did']['origination']) != list:
-    name = doc['ead']['archdesc']['did']['origination']['persname']
+# fix origination source/rules if wrong
+# remove audience="internal" so displays properly
+origination = doc['ead']['archdesc']['did']['origination']
+if type(origination) != list:
+    origination.pop('@audience')
+    name = origination['persname']
     fix_agent_source(name)
 else:
-    for p in doc['ead']['archdesc']['did']['origination']:
+    for p in origination:
+        p.pop('@audience')
         name = p['persname']
         fix_agent_source(name)
 
