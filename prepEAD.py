@@ -71,6 +71,23 @@ def parse_series(seriesidx):
                 fix_agent_source(d['did']['origination']['persname'])
             else:
                 fix_agent_source(d['did']['origination']['corpname'])
+
+def R_parse_series(num_series, series):
+    title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
+
+    for idx,i in enumerate(series):
+        if title in i['did']['unittitle']['#text']:
+            seriesidx = idx
+
+    parse_series(seriesidx)
+    num_series -= 1
+    return num_series
+
+def multi_series_parse(num_series, series):
+    if num_series > 0:
+         return loop_func(R_parse_series(num_series, series), series)
+    else:
+        return num_series
 ############################################################
 
 # load converted EAD
@@ -106,16 +123,7 @@ series = doc['ead']['archdesc']['dsc']['c01']
 # # indicate how many series of archival objects to parse
 # num_series = int(input("enter the number of series containing archival objects to reformat: "))
 num_series = 2
-
-while num_series > 0:
-    title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
-
-    for idx,i in enumerate(series):
-        if title in i['did']['unittitle']['#text']:
-            seriesidx = idx
-
-    parse_series(seriesidx)
-    num_series -= 1
+multi_series_parse(num_series, series)
 
 # convert dict to json to xmlstring
 xmlstr = dict2xmlstr(doc, pretty = True)
