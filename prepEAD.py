@@ -72,12 +72,38 @@ def parse_series(seriesidx):
             else:
                 fix_agent_source(d['did']['origination']['corpname'])
 
+def fix_lcsh(subject_type, subname):
+    if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'Library of Congress Subject Headings':
+        subject_type[subname]['@source'] = 'lcsh'
+    else:
+        for c in subject_type[subname]:
+            if c['@source'] == 'Library of Congress Subject Headings':
+                c['@source'] = 'lcsh'
+
+def fix_altrender(subject_type, subname):
+    if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'archiveswest':
+        subject_type[subname]['@altrender'] = 'nodisplay'
+    else:
+        for c in subject_type[subname]:
+            if c['@source'] == 'archiveswest':
+                c['@altrender'] = 'nodisplay'
+
+def parse_controlaccess(subject_type):
+    if subject_type == 'corpname':
+        fix_lcsh(subject_type, 'corpname')
+    if subject_type == 'geogname':
+        fix_altrender(subject_type, 'geogname')
+    if subject_type == 'subject':
+        fix_lcsh(subject_type, 'subject')
+    if subject_type == 'genreform':
+        fix_altrender(subject_type, 'genreform')
+
 ############################################################
 
 # load converted EAD
 # path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
 # repo = input("enter the repository (media or ethno): ")
-path = './data/wau_uwea_2008012-c.xml'
+path = './data/wau_waseumc_1971005-c.xml'
 
 with open(path) as fd:
     doc = xmltodict.parse(fd.read())
@@ -100,35 +126,14 @@ else:
         name = p['persname']
         fix_agent_source(name)
 
-# fix incorrect subject sources/display settings
-for subject_type in doc['ead']['archdesc']['controlaccess']['controlaccess']:
-    if 'corpname' in subject_type:
-        if type(subject_type['corpname']) is not list:
-            subject_type['corpname']['@source'] = 'lcsh'
-        else:
-            for c in subject_type['corpname']:
-                c['@source'] = 'lcsh'
-    if 'geogname' in subject_type:
-        if type(subject_type['geogname']) is not list and subject_type['geogname']['@source'] == 'archiveswest':
-            subject_type['geogname']['@altrender'] = 'nodisplay'
-        else:
-            for c in subject_type['geogname']:
-                if c['@source'] == 'archiveswest':
-                    c['@altrender'] = 'nodisplay'
-    if 'subject' in subject_type:
-        if type(subject_type['subject']) is not list and subject_type['subject']['@source'] != 'archiveswest':
-            subject_type['subject']['@source'] = 'lcsh'
-        else:
-            for c in subject_type['subject']:
-                if c['@source'] != 'archiveswest':
-                    c['@source'] = 'lcsh'
-    if 'genreform' in subject_type:
-        if type(subject_type['genreform']) is not list and subject_type['genreform']['@source'] == 'archiveswest':
-            subject_type['genreform']['@altrender'] = 'nodisplay'
-        else:
-            for c in subject_type['genreform']:
-                if c['@source'] == 'archiveswest':
-                    c['@altrender'] = 'nodisplay'
+# fix incorrect lcsh subject source (occasionally exported as 'Library of Congress Subject Headings' rather that 'lcsh') and display settings for aw browsing terms
+controlaccess = doc['ead']['archdesc']['controlaccess']['controlaccess']
+if type(controlaccess) is list:
+    for subject_type in controlaccess:
+        parse_controlaccess(subject_type)
+else:
+    parse_controlaccess(controlaccess)
+
 
 # locate the series containing archival objects
 series = doc['ead']['archdesc']['dsc']['c01']
