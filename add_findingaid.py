@@ -28,7 +28,6 @@ for i in ethno:
         i['ead_location'] = 'http://archiveswest.orbiscascade.org/findaid/ark:/80444/xv[Insert ARK ID]'
         i['finding_aid_date'] = '2017'
         i['finding_aid_description_rules'] = 'dacs'
-        i['finding_aid_filing_title'] = '[Inverse Creator Name]+[Rest of Title]'
         i['finding_aid_language'] = 'Finding aid written in English.'
         if 'collection' not in i['title'].lower():
             i['finding_aid_title'] = 'Guide to the '+i['title']+' Collection'
