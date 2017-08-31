@@ -68,11 +68,15 @@ source_limit = input('enter the exact name of the name-source to focus on (e.g. 
 agents = [i for i in agents if i['names'][0]['source'] == source_limit]
 print('will search for '+str(len(agents))+' possible lcnaf names')
 
+output = input("Enter the name/path of the data file to save (e.g. ./data/lcnaf.csv): ")
+
 spinner = Spinner('searching name authority files...')
 state = 'loading'
 
-with open('./data/lcnaf.csv', 'w') as out_file:
+# save successful search results in one csv, names with no lc_auth_number in another file for QC
+with open(output, 'w') as out_file, open('./data/noID.csv', 'w') as noID:
     writer = csv.writer(out_file, delimiter='\t')
+    no_writer = csv.writer(noID, delimiter='\t')
     while state != 'FINISHED':
         for agent in agents:
             search_term = agent['display_name']['sort_name']
@@ -86,6 +90,7 @@ with open('./data/lcnaf.csv', 'w') as out_file:
                 else:
                     spinner.next()
             else:
+                no_writer.writerow((search_term, 'not found'))
                 spinner.next()
         state = 'FINISHED'
 
