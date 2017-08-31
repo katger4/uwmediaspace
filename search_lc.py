@@ -63,14 +63,13 @@ def search_lc(name, lc_address):
 
 ############################################################
 
-# filename = input("Enter filename of the list of names to search: ")
-# unlikely = load_csv(filename)
-unlikely = load_csv('./data/noID.csv')
+filename = input("Enter filename of the list of names to search: ")
+unlikely = load_csv(filename)
+# unlikely = load_csv('./data/unlikely_p.tsv')
 print(len(unlikely))
 
-# name_addition = input("Enter the type of name to search for (e.g. musical or rock): ")
-
-name_addition = ''
+name_addition = input("Enter the type of name to search for (e.g. musical or rock): ")
+# name_addition = ''
 
 # lc_address = create_lc_address('bat for lashes', name_addition)
 # print(lc_address)
