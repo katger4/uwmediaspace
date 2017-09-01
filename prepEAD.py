@@ -75,7 +75,7 @@ def parse_series(seriesidx):
 def fix_lcsh(subject_type, subname):
     if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'Library of Congress Subject Headings':
         subject_type[subname]['@source'] = 'lcsh'
-    else:
+    elif type(subject_type[subname]) is list:
         for c in subject_type[subname]:
             if c['@source'] == 'Library of Congress Subject Headings':
                 c['@source'] = 'lcsh'
@@ -83,26 +83,26 @@ def fix_lcsh(subject_type, subname):
 def fix_altrender(subject_type, subname):
     if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'archiveswest':
         subject_type[subname]['@altrender'] = 'nodisplay'
-    else:
+    elif type(subject_type[subname]) is list:
         for c in subject_type[subname]:
             if c['@source'] == 'archiveswest':
                 c['@altrender'] = 'nodisplay'
 
 def parse_controlaccess(subject_type):
-    if subject_type == 'corpname':
-        fix_lcsh(subject_type, 'corpname')
-    if subject_type == 'geogname':
+    # if 'corpname' in subject_type:
+    #     fix_lcsh(subject_type, 'corpname')
+    if 'geogname' in subject_type:
         fix_altrender(subject_type, 'geogname')
-    if subject_type == 'subject':
-        fix_lcsh(subject_type, 'subject')
-    if subject_type == 'genreform':
+    # if 'subject' in subject_type:
+    #     fix_lcsh(subject_type, 'subject')
+    if 'genreform' in subject_type:
         fix_altrender(subject_type, 'genreform')
 
 ############################################################
 
 # load converted EAD
 path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
-# path = './data/wau_waseumc_1971005-c.xml'
+# path = './data/wau_uwea_2008012-c.xml'
 
 with open(path) as fd:
     doc = xmltodict.parse(fd.read())
@@ -141,18 +141,6 @@ else:
 # locate the series containing archival objects
 series = doc['ead']['archdesc']['dsc']['c01']
 
-# the converter seems to change @actuate: 'onrequest' to @actuate: ''
-# need to change back to onrequest
-# this applies mainly to logsheet links in note text - TBD if more exist
-if 'c02' not in series and type(series) == list:
-    for obj in series:
-        if 'odd' in obj and 'extref' in obj['odd']['p']:
-            obj['odd']['p']['extref']['@actuate'] = 'onrequest'
-        elif 'odd' in obj and type(obj['odd']['p']) is list:
-            for p in obj['odd']['p']:
-                if 'extref' in p:
-                    p['extref']['@actuate'] = 'onrequest'
-
 # # indicate how many series of archival objects to parse
 num_series = int(input("enter the number of series containing archival objects to reformat: "))
 # num_series = 2
@@ -169,6 +157,11 @@ while num_series > 0:
 
 # convert dict to json to xmlstring
 xmlstr = dict2xmlstr(doc, pretty = True)
+# the converter seems to change @actuate: 'onrequest' to @actuate: ''
+# need to change back to onrequest
+# this applies mainly to logsheet links in note text and links to documents in descriptions
+# also, converter or exporter incorrectly label some source elements as 'Library of Congress Subject Headings' when should be 'lcsh'
+xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh')
 
 output = input("enter the path and name of the data file to store your prepped EAD in (e.g. ./data/wau_eadname.xml): ")
 write_EAD_xml(xmlstr, output)
