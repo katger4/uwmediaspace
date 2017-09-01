@@ -102,8 +102,7 @@ def parse_controlaccess(subject_type):
 
 # load converted EAD
 path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
-# repo = input("enter the repository (media or ethno): ")
-# path = './data/wau_uwea_2008012-c.xml'
+# path = './data/wau_waseumc_1971005-c.xml'
 
 with open(path) as fd:
     doc = xmltodict.parse(fd.read())
@@ -141,6 +140,18 @@ else:
 
 # locate the series containing archival objects
 series = doc['ead']['archdesc']['dsc']['c01']
+
+# the converter seems to change @actuate: 'onrequest' to @actuate: ''
+# need to change back to onrequest
+# this applies mainly to logsheet links in note text - TBD if more exist
+if 'c02' not in series and type(series) == list:
+    for obj in series:
+        if 'odd' in obj and 'extref' in obj['odd']['p']:
+            obj['odd']['p']['extref']['@actuate'] = 'onrequest'
+        elif 'odd' in obj and type(obj['odd']['p']) is list:
+            for p in obj['odd']['p']:
+                if 'extref' in p:
+                    p['extref']['@actuate'] = 'onrequest'
 
 # # indicate how many series of archival objects to parse
 num_series = int(input("enter the number of series containing archival objects to reformat: "))
