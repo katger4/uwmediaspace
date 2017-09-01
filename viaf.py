@@ -5,6 +5,10 @@ from lxml import etree
 import requests
 from progress.spinner import Spinner
 import csv
+from fuzzywuzzy import fuzz
+import re
+import unicodedata
+import regex
 
 # this python script uses VIAF and LCNAF querying functions modified from http://archival-integration.blogspot.com/2015/07/order-from-chaos-reconciling-local-data.html to reconcile stored agent names with authority files
 
@@ -46,13 +50,31 @@ def get_lc_term_name(lc_auth_number):
     response = requests.get(lc_address).headers
     # use the preferred name (part of the headers)
     lc_name = response['X-PrefLabel']
-    return lc_name
+    # add this decode/encode step to properly view foreign characters
+    return lc_name.encode('latin-1').decode()
+
+def prep_lc_name(lc_name):
+    # remove anything in parenthesis from lc name for comparison purposes
+    lc = re.sub(r'\([^)]*\)', '', lc_name).strip() 
+    # https://stackoverflow.com/questions/3833791/python-regex-to-convert-non-ascii-characters-in-a-string-to-closest-ascii-equiva
+    # convert foregin chars to closest matching ascii char for fuzzy comparison
+    # all names lack special characters
+    lc_test = regex.sub(r"\p{Mn}", "", unicodedata.normalize("NFKD", lc))
+    # also remove digits for comparison purposes
+    lc_test = re.sub(r'\d+', '', lc_test).strip()
+    return lc_test
+
+def write_tsv(data, output):
+    with open(output, 'w', encoding='utf-8-sig') as out_file:
+        writer = csv.writer(out_file, delimiter='\t')
+        for name,lc in data:
+            writer.writerow((name,lc))
 
 ############################################################
 
-# load agents
+# # load agents
 filename = input("Enter the path to the data file containing the downloaded agent records (e.g. ./data/people.txt or ./data/corp.txt): ")
-# filename = './data/corp.txt'
+# # filename = './data/people.txt'
 
 agents = load_pickled(filename)
 
@@ -66,33 +88,66 @@ elif agent_type == 'people':
 source_limit = input('enter the exact name of the name-source to focus on (e.g. local): ')
 
 agents = [i for i in agents if i['names'][0]['source'] == source_limit]
+# agents = ['Cicek, Ali Ekber', 'Carter, Bo']
 print('will search for '+str(len(agents))+' possible lcnaf names')
-
-output = input("Enter the name/path of the data file to save (e.g. ./data/lcnaf.csv): ")
 
 spinner = Spinner('searching name authority files...')
 state = 'loading'
 
-# save successful search results in one csv, names with no lc_auth_number in another file for QC
-with open(output, 'w') as out_file, open('./data/noID.csv', 'w') as noID:
-    writer = csv.writer(out_file, delimiter='\t')
-    no_writer = csv.writer(noID, delimiter='\t')
-    while state != 'FINISHED':
-        for agent in agents:
-            search_term = agent['display_name']['sort_name']
-            response = retrieve_viaf_search_results(search_index, search_term)
-            lc_auth_number = get_lc_auth_from_viaf_data(response)
-            if lc_auth_number != '':
-                lc_name = get_lc_term_name(lc_auth_number)
-                if lc_name != None:
-                    writer.writerow((search_term, lc_name))
-                    spinner.next()
-                else:
-                    spinner.next()
-            else:
-                no_writer.writerow((search_term, 'not found'))
-                spinner.next()
-        state = 'FINISHED'
+noID = []
+matches = {}
 
-print('\n data saved for quality control!')
+while state != 'FINISHED':
+    for agent in agents:
+        search_term = agent['display_name']['sort_name']
+        response = retrieve_viaf_search_results(search_index, search_term)
+        lc_auth_number = get_lc_auth_from_viaf_data(response)
+        if lc_auth_number != '':
+            lc_name = get_lc_term_name(lc_auth_number)
+            if lc_name != None:
+                matches[search_term] = lc_name
+                spinner.next()
+            else:
+                spinner.next()
+        else:
+            noID.append((search_term, 'not found'))
+            spinner.next()
+    state = 'FINISHED'
+
+likely = []
+unlikely = []
+
+# fuzzy matching to remove unlikely matches
+if agent_type == 'corporate':
+    for name,lc in list(matches.items()):
+        # remove extra 'The' (for band name comparison mostly)
+        # convert UW to University of Washington 
+        name_test = name.replace('The', '').replace('UW ', 'University of Washington ')
+        lc_test = prep_lc_name(lc)
+        ratio = fuzz.token_sort_ratio(name_test, lc_test)
+        if ratio >= 75:
+            likely.append((name,lc))
+        else:
+            unlikely.append((name,lc))
+            
+elif agent_type == 'people':
+    for name,lc in list(matches.items()):
+        lc_test = prep_lc_name(lc)
+        ratio = fuzz.token_sort_ratio(name, lc_test)
+        print((name, lc, ratio))
+        if ratio >= 75:
+            likely.append((name,lc))
+        else:
+            unlikely.append((name,lc))
+
+print('\nfound '+str(len(likely))+' likely matches')
+print('and '+str(len(unlikely))+' unlikely matches')
+print(str(len(noID))+' names were not found in VIAF')
+
+unlikely = sorted(unlikely)+sorted(noID)
+
+write_tsv(sorted(likely), './data/likely.tsv')
+write_tsv(unlikely, './data/unlikely.tsv')
+
+print('data saved for quality control!')
 
