@@ -40,7 +40,7 @@ to extract different types of records stored in ASpace.
 
 	e. and save that data to a csv for quality control
 
-3. run **search_lc.py** on the file of mismatched names and names that were not found in VIAF to search LC directly (may provide a few more matches...needs improvement)
+3. run **search_lc.py** on the file of mismatched names and names that were not found in VIAF to search LC directly (can provide more matches)
 
 4. run **add_lcnaf.py.py** on the quality controlled list of names/LCNAF terms to update stored agent records with the LCNAF terms found
 

@@ -111,10 +111,15 @@ elif 'people' in filename:
 			lcnaf_name = lcnaf[lookup_name]
 			lcnaf_name_list = lcnaf_name.split(', ')
 
-			lcnaf_name_primary = lcnaf_name_list[0]
-			lcnaf_name_rest = lcnaf_name_list[1]
+			if len(lcnaf_name_list) == 1:
+				lcnaf_name_primary = lcnaf_name_list[0]
+				lcnaf_name_rest = ''
 
-			if len(lcnaf_name_list) == 2:
+			else:
+				lcnaf_name_primary = lcnaf_name_list[0]
+				lcnaf_name_rest = lcnaf_name_list[1]
+
+			if len(lcnaf_name_list) in [1,2]:
 				create_person(lcnaf_name, lcnaf_name_primary, lcnaf_name_rest)
 				updates.append(agent)
 			else:
