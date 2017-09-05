@@ -10,6 +10,8 @@ Use the following scripts:
 
 - **get_dos.py** (get digital object records)
 
+- **get_subjects.py** (get subject records)
+
 - **get_resource_aos.py** (get the archival objects of a given resource)
 
 - **get_ethno_aos.py** (get all archival objects in the Ethnomusicology Archives)
@@ -53,6 +55,8 @@ to extract different types of records stored in ASpace.
 - **croc.py**: extra processing necessary for display purposes for the croc collection (should be run after prepEAD.p)
 
 ## Data cleaning scripts (some examples)
+
+- **add_add_AW_terms.py**: add AW browsing terms to ethnomusicology resources based on [HRAF](http://hraf.yale.edu/) and [LCSH](http://id.loc.gov/authorities/subjects.html) subjects already linked to each collection
 
 - **add_findingaid.py**: add template finding aid information to each downloaded resource record
 
