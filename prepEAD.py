@@ -14,12 +14,6 @@ def is_digi(year):
     else:
         return False
 
-def dict2xmlstr(mergeddata,pretty=False):
-    fulltext = json.dumps(mergeddata)
-    jsonObj = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(fulltext)
-    xmlStr = xmltodict.unparse(jsonObj,pretty=pretty)
-    return xmlStr
-
 def write_EAD_xml(xmlstr, outfilename):
     with open(outfilename, 'w') as outfile:
         outfile.write(xmlstr[0:39])
@@ -66,70 +60,126 @@ def parse_series(seriesidx):
                         year = date[:4]
                         if is_digi(year) == True:
                             d['did']['unitdate'].pop(idx)
+
+        # correct name sources/rules as necessary for creators
         if 'origination' in d['did']:
             if 'persname' in d['did']['origination']:
                 fix_agent_source(d['did']['origination']['persname'])
             else:
                 fix_agent_source(d['did']['origination']['corpname'])
 
-def fix_lcsh(subject_type, subname):
-    if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'Library of Congress Subject Headings':
-        subject_type[subname]['@source'] = 'lcsh'
-    elif type(subject_type[subname]) is list:
-        for c in subject_type[subname]:
-            if c['@source'] == 'Library of Congress Subject Headings':
-                c['@source'] = 'lcsh'
-
 def fix_altrender(subject_type, subname):
     if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'archiveswest':
         subject_type[subname]['@altrender'] = 'nodisplay'
+        subject_type[subname]['@encodinganalog'] = '690'
     elif type(subject_type[subname]) is list:
         for c in subject_type[subname]:
             if c['@source'] == 'archiveswest':
                 c['@altrender'] = 'nodisplay'
+                c['@encodinganalog'] = '690'
 
 def parse_controlaccess(subject_type):
-    # if 'corpname' in subject_type:
-    #     fix_lcsh(subject_type, 'corpname')
     if 'geogname' in subject_type:
         fix_altrender(subject_type, 'geogname')
-    # if 'subject' in subject_type:
-    #     fix_lcsh(subject_type, 'subject')
     if 'genreform' in subject_type:
         fix_altrender(subject_type, 'genreform')
 
+def parse_origination(origination, agent_type):
+
+    creators_list = []
+
+    if type(origination[agent_type]) != list:
+        name = origination[agent_type]
+        fix_agent_source(name)
+        creators_list.append(name['#text'])
+
+    else:
+
+        for name in origination[agent_type]:
+            fix_agent_source(name)
+            creators_list.append(name['#text'])
+
+    return '; '.join(creators_list)
+
+def combine_multiple_creators(origination):
+
+    if 'persname' in origination:
+        origination.pop('persname')
+    if 'corpname' in origination:
+        origination.pop('corpname')
+
+    all_creators = '; '.join(filter(None,[people,corps]))
+
+    creator = OrderedDict()
+    creator['@role'] = 'creator'
+    creator['@rules'] = 'aacr2'
+    creator['@encodinganalog'] = '100'
+    creator['#text'] = all_creators
+
+    return creator
+
 ############################################################
 
-# load converted EAD
+# # load converted EAD
 path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
-# path = './data/wau_uwea_2008012-c.xml'
+repo = input("enter the id number of the repository this document was exported from (media = 4; ethno = 2): ")
+# path = './data/wau_waseumc_1987028-c.xml'
+# repo = '4'
 
 with open(path) as fd:
     doc = xmltodict.parse(fd.read())
 
-# fix agency codes
-# if repo == 'media':
-doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'waseumc'
-doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
+# fix agency codes (sometimes exported strangely)
+if repo == '4':
+    doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'waseumc'
+    doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
+elif repo == '2':
+    doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'WaU-EM'
+    doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'WaU-EM'
+else:
+    print('invalid repository id provided. please try again.')
 
 # remove unnecessary extref tag if there
 if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
     doc['ead']['eadheader']['filedesc']['publicationstmt'].pop('extref')
 
+# remove additional dates if exist for display
+# note: all ethno resources will have the creation date as the first date
+# other dates (accession/publication) will be removed
+# datechar not exported from ASpace, better way to identify dates would be good
+resource_date = doc['ead']['archdesc']['did']['unitdate']
+if type(resource_date) is list:
+    doc['ead']['archdesc']['did']['unitdate'] = resource_date[0]
+
+# save creation date for use in title parsing below
+date_text = resource_date[0]['#text']
+
+# remove the date tag from the title element (seems to be displaying improperly)
+# add creation date to title text if not undated
+titles = doc['ead']['eadheader']['filedesc']['titlestmt']['titleproper']
+for t in titles:
+    if 'date' in t:
+        #t.move_to_end('date') # last=False moves to beginning)
+        t.pop('date')
+        if date_text != 'Undated':
+            t['#text'] = t['#text']+', '+date_text
+
 # fix origination source/rules if wrong
 # remove audience="internal" so displays properly
+# if multiple creators, join text as a list so display of creators isn't crammed together
 origination = doc['ead']['archdesc']['did']['origination']
-if type(origination) != list:
-    origination.pop('@audience')
-    name = origination['persname']
-    fix_agent_source(name)
-else:
-    for p in origination:
-        p.pop('@audience')
-        name = p['persname']
-        fix_agent_source(name)
+origination.pop('@audience')
 
-# fix incorrect lcsh subject source (occasionally exported as 'Library of Congress Subject Headings' rather that 'lcsh') and display settings for aw browsing terms
+people,corps = None,None
+if 'persname' in origination:
+    people = parse_origination(origination, 'persname')
+if 'corpname' in origination:
+    corps = parse_origination(origination, 'corpname')
+
+if len(people) + len(corps) > 1:
+    doc['ead']['archdesc']['did']['origination']['persname'] = combine_multiple_creators(origination)
+
+# fix display settings for aw browsing terms
 controlaccess = doc['ead']['archdesc']['controlaccess']['controlaccess']
 if type(controlaccess) is list:
     for subject_type in controlaccess:
@@ -137,26 +187,30 @@ if type(controlaccess) is list:
 else:
     parse_controlaccess(controlaccess)
 
+# if a resource contains archival objects in a series, 
+# parse the objects in that series
+if 'dsc' in doc['ead']['archdesc']:
 
-# locate the series containing archival objects
-series = doc['ead']['archdesc']['dsc']['c01']
+    # locate the series containing archival objects
+    series = doc['ead']['archdesc']['dsc']['c01']
 
-# # indicate how many series of archival objects to parse
-num_series = int(input("enter the number of series containing archival objects to reformat: "))
-# num_series = 2
+    # indicate how many series of archival objects to parse
+    num_series = int(input("enter the number of series containing archival objects to reformat: "))
+    # num_series = 2
 
-while num_series > 0:
-    title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
+    while num_series > 0:
+        title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
 
-    for idx,i in enumerate(series):
-        if title in i['did']['unittitle']['#text']:
-            seriesidx = idx
+        for idx,i in enumerate(series):
+            if title in i['did']['unittitle']['#text']:
+                seriesidx = idx
 
-    parse_series(seriesidx)
-    num_series -= 1
+        parse_series(seriesidx)
+        num_series -= 1
 
-# convert dict to json to xmlstring
-xmlstr = dict2xmlstr(doc, pretty = True)
+# convert dict to xmlstring
+xmlstr = xmltodict.unparse(doc, pretty=True)
+
 # the converter seems to change @actuate: 'onrequest' to @actuate: ''
 # need to change back to onrequest
 # this applies mainly to logsheet links in note text and links to documents in descriptions
