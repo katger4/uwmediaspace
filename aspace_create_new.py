@@ -4,6 +4,7 @@ import json
 import requests
 import pickle
 from progress.spinner import Spinner
+import pprint
 
 ############################################################
 
@@ -24,10 +25,10 @@ def import_data(item_list):
             posted = post_item(item, location)
             spinner.next()
             if 'error' in posted.keys():
-                print(('List item number: '+str(idx)+' was not posted! See error message. ',posted))
+                print(('\nList item number: '+str(idx)+' was not posted! See error message. ',posted))
                 next_item = idx+1
                 print('Next list item to post will be: ')
-                print(item_list[next_item])
+                pprint.pprint(item_list[next_item])
                 break
         state = 'FINISHED'
     print('Import complete.')
