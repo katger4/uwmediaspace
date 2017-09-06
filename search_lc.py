@@ -61,7 +61,7 @@ def search_lc(name, lc_address):
 			# get fuzzy match ratio
 			ratio = fuzz.token_sort_ratio(lc_test, name)
 			# print(name, row['Label'], ratio)
-			if ratio >= 60 :
+			if ratio >= 80 :
 				potential = (name, row['Label'])
 				break
 
@@ -72,7 +72,7 @@ def search_lc(name, lc_address):
 
 # filename = input("Enter filename of the list of names to search: ")
 # unlikely = load_csv(filename)
-unlikely = load_csv('./data/_unlikely.tsv')
+unlikely = load_csv('./data/unlikely.tsv')
 print(len(unlikely))
 
 # lc_address = create_lc_address('bat for lashes')

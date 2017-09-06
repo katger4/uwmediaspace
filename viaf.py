@@ -3,6 +3,7 @@
 import pickle
 from lxml import etree
 import requests
+from bs4 import BeautifulSoup
 from progress.spinner import Spinner
 import csv
 from fuzzywuzzy import fuzz
@@ -64,6 +65,34 @@ def prep_lc_name(lc_name):
     lc_test = re.sub(r'\d+', '', lc_test).strip()
     return lc_test
 
+def create_lc_address(name):
+    name_list = name.split(' ')
+    search_name = '+'.join(name_list)
+    lc_address = "http://id.loc.gov/search/?q="+search_name+"&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fauthorities%2Fnames"
+    return lc_address
+
+def search_lc(name, lc_address):
+    # search LoC for that name
+    response = requests.get(lc_address).content
+    # parse search results using bs4
+    soup = BeautifulSoup(response, 'lxml')
+    table = soup.find('table', {"class" : "id-std"})
+    if table != None:
+        headers = [header.text for header in table.find_all('th',{'scope' :'col'})]
+        rows = [{headers[i]: cell.text for i, cell in enumerate(row.findAll("td"))} for row in table.select("tbody tr")]
+        # now do fuzzy matching
+        potential = None
+        for row in rows:
+            lc_test = prep_lc_name(row['Label'])
+            # get fuzzy match ratio
+            ratio = fuzz.token_sort_ratio(lc_test, name)
+            # print(name, row['Label'], ratio)
+            if ratio >= 80 :
+                potential = (name, row['Label'])
+                break
+
+        return potential
+
 def write_tsv(data, output):
     with open(output, 'w', encoding='utf-8-sig') as out_file:
         writer = csv.writer(out_file, delimiter='\t')
@@ -87,7 +116,7 @@ elif agent_type == 'people':
 
 source_limit = input('enter the exact name of the name-source to focus on (e.g. local): ')
 
-agents = [i for i in agents if i['names'][0]['source'] == source_limit]
+agents = [i for i in agents if i['display_name'].get('source') == source_limit]
 # agents = ['Cicek, Ali Ekber', 'Carter, Bo']
 print('will search for '+str(len(agents))+' possible lcnaf names')
 
@@ -134,8 +163,8 @@ elif agent_type == 'people':
     for name,lc in list(matches.items()):
         lc_test = prep_lc_name(lc)
         ratio = fuzz.token_sort_ratio(name, lc_test)
-        print((name, lc, ratio))
-        if ratio >= 75:
+        # print((name, lc, ratio))
+        if ratio >= 80:
             likely.append((name,lc))
         else:
             unlikely.append((name,lc))
@@ -146,8 +175,38 @@ print(str(len(noID))+' names were not found in VIAF')
 
 unlikely = sorted(unlikely)+sorted(noID)
 
+# create a dict of name:lcnaf
+unlikely_dict = {name:lc for name,lc in unlikely}
+
+print('will search for all '+str(len(unlikely_dict))+' unmatched names in LoC directly')
+
+spinner = Spinner('searching LoC name authority files...')
+state = 'loading'
+
+found_names = []
+not_found = []
+
+while state != 'FINISHED':
+    for name in unlikely_dict:
+        name = name.replace('UW ', 'University of Washington ')
+        lc_address = create_lc_address(name)
+        new_match = search_lc(name, lc_address)
+        if new_match != None:
+            found_names.append(new_match)
+            spinner.next()
+        else:
+            not_found.append((name, 'no match'))
+            spinner.next()
+    state = 'FINISHED'
+
+print('\nfound '+str(len(found_names))+' potential matches')
+print('but '+str(len(not_found))+' were not found')
+
+write_tsv(sorted(found_names), './data/lc_found_names.tsv')
+write_tsv(sorted(not_found), './data/lc_not_found.tsv')
+
 write_tsv(sorted(likely), './data/likely.tsv')
-write_tsv(unlikely, './data/unlikely.tsv')
+# write_tsv(unlikely, './data/unlikely.tsv')
 
 print('data saved for quality control!')
 

@@ -67,7 +67,7 @@ filename = input("Enter the path to the data file containing the downloaded agen
 agents = load_pickled(filename)
 
 source_limit = input('enter the exact name of the name-source to focus on (e.g. local): ')
-agents = [i for i in agents if i['names'][0]['source'] == source_limit]
+agents = [i for i in agents if i['display_name'].get('source') == source_limit]
 
 lcnaf_filename = input("Enter the path to the data file containing the lcnaf records (e.g. ./data/lcnaf_fuzz.tsv): ")
 # lcnaf_filename = './data/lcnaf_ppl.tsv'

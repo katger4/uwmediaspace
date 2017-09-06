@@ -23,7 +23,7 @@ filename = input("Enter the path to the data file containing the downloaded agen
 agents = load_pickled(filename)
 
 # limit to recently imported items from the lcnaf plugin (based on source)
-naf = [i for i in agents if any(n['source'] == 'naf' for n in i['names']) or any(n['source'] == 'ingest' for n in i['names'])]
+naf = [i for i in agents if any(n.get('source') == 'naf' for n in i['names']) or any(n.get('source') == 'ingest' for n in i['names'])]
 
 if 'people' in filename:
 	updates =[]

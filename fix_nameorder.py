@@ -79,7 +79,7 @@ if limit == 'n':
     updates = invert_names(all_ppl)
 elif limit == 'y':
     source_limit = input('enter the exact name of the name-source to focus on (e.g. local): ')
-    ppl = [i for i in all_ppl if i['names'][0]['source'] == source_limit]
+    ppl = [i for i in all_ppl if i['display_name'].get('source') == source_limit]
     print('now focusing on '+str(len(ppl))+' records')
     updates = invert_names(ppl)
 else:
