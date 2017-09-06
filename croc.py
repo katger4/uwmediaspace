@@ -103,8 +103,8 @@ def parse_series(seriesidx):
 ############################################################
 
 # load converted EAD
-# path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
-path = './data/wau_uwea_2008012-temp.xml'
+path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
+
 with open(path) as fd:
     doc = xmltodict.parse(fd.read())
 

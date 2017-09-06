@@ -24,7 +24,7 @@ ethno = load_pickled('./data/ethno.txt')
 updates = []
 for i in ethno:
     if i['ead_id'] == '':
-        i['ead_id'] = 'wau_waseumc_'+i['id_0']+'.xml'
+        i['ead_id'] = 'wauem_'+i['id_0']+'.xml'
         i['ead_location'] = 'http://archiveswest.orbiscascade.org/findaid/ark:/80444/xv[Insert ARK ID]'
         i['finding_aid_date'] = '2017'
         i['finding_aid_description_rules'] = 'dacs'

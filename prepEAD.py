@@ -134,8 +134,8 @@ if repo == '4':
     doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'waseumc'
     doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
 elif repo == '2':
-    doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'WaU-EM'
-    doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'WaU-EM'
+    doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'wauem'
+    doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'wauem'
 else:
     print('invalid repository id provided. please try again.')
 
@@ -150,9 +150,10 @@ if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
 resource_date = doc['ead']['archdesc']['did']['unitdate']
 if type(resource_date) is list:
     doc['ead']['archdesc']['did']['unitdate'] = resource_date[0]
-
-# save creation date for use in title parsing below
-date_text = resource_date[0]['#text']
+    # save creation date for use in title parsing below
+    date_text = resource_date[0]['#text']
+else:
+    date_text = resource_date['#text']
 
 # remove the date tag from the title element (seems to be displaying improperly)
 # add creation date to title text if not undated
@@ -170,7 +171,8 @@ for t in titles:
 origination = doc['ead']['archdesc']['did']['origination']
 origination.pop('@audience')
 
-people,corps = None,None
+people = ''
+corps = ''
 if 'persname' in origination:
     people = parse_origination(origination, 'persname')
 if 'corpname' in origination:
