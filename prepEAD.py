@@ -44,12 +44,22 @@ def parse_series(seriesidx):
                 d['scopecontent']['p'] = d['scopecontent']['#text']
                 d['scopecontent'].pop('#text')
 
+        if 'physdesc' in d['did'] and proceed == 'y':
+                physdesc = d['did']['physdesc']
+                d['odd'] = {'@encodinganalog': '500',
+                            'p': physdesc}
+
         # remove digitization dates for display purposes
         if 'unitdate' in d['did']:
             if type(d['did']['unitdate']) != list:
-                year = d['did']['unitdate']['#text'][:4]
-                if is_digi(year) == True:
-                    d['did'].pop('unitdate')
+                try:
+                    year = d['did']['unitdate']['#text'][:4]
+                    if is_digi(year) == True:
+                        d['did'].pop('unitdate')
+                except TypeError:
+                    year = d['did']['unitdate'][:4]
+                    if is_digi(year) == True:
+                        d['did'].pop('unitdate')
             else:
                 for idx,date in enumerate(d['did']['unitdate']):
                     try:
@@ -64,9 +74,9 @@ def parse_series(seriesidx):
         # correct name sources/rules as necessary for creators
         if 'origination' in d['did']:
             if 'persname' in d['did']['origination']:
-                fix_agent_source(d['did']['origination']['persname'])
-            else:
-                fix_agent_source(d['did']['origination']['corpname'])
+                ppl = parse_origination(d['did']['origination'], 'persname')
+            if 'corpname' in d['did']['origination']:
+                cor = parse_origination(d['did']['origination'], 'corpname')
 
 def fix_altrender(subject_type, subname):
     if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'archiveswest':
@@ -85,37 +95,28 @@ def parse_controlaccess(subject_type):
         fix_altrender(subject_type, 'genreform')
 
 def parse_origination(origination, agent_type):
-
     creators_list = []
-
     if type(origination[agent_type]) != list:
         name = origination[agent_type]
         fix_agent_source(name)
         creators_list.append(name['#text'])
-
     else:
-
         for name in origination[agent_type]:
             fix_agent_source(name)
             creators_list.append(name['#text'])
-
     return '; '.join(creators_list)
 
 def combine_multiple_creators(origination):
-
     if 'persname' in origination:
         origination.pop('persname')
     if 'corpname' in origination:
         origination.pop('corpname')
-
     all_creators = '; '.join(filter(None,[people,corps]))
-
     creator = OrderedDict()
     creator['@role'] = 'creator'
     creator['@rules'] = 'aacr2'
     creator['@encodinganalog'] = '100'
     creator['#text'] = all_creators
-
     return creator
 
 ############################################################
@@ -188,6 +189,8 @@ if type(controlaccess) is list:
         parse_controlaccess(subject_type)
 else:
     parse_controlaccess(controlaccess)
+
+proceed = input('do you wish to move archival object <physdesc> text to notes for display purposes (this will override general notes)? (y/n) ')
 
 # if a resource contains archival objects in a series, 
 # parse the objects in that series
