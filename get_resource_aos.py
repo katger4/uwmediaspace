@@ -60,7 +60,7 @@ while state != 'FINISHED':
 
 print(' successfully downloaded '+str(len(mr_aos))+' archival objects')
 
-output = input("enter the path and name of the data file to store your saved archival objects in (e.g. ./data/mr_aos.txt): ")
+output = input("enter the path and name of the data file to store your saved archival objects in (e.g. ./data/aos.txt): ")
 write_pickle(mr_aos, output)
 print('data saved!')
 

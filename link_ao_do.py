@@ -20,9 +20,13 @@ def create_link(do_id):
 ############################################################
 
 # load dos
-dos = load_pickled('./data/digi_objects.txt')
+filename_d = input('enter the name of the saved list of digital objects: ')
+dos = load_pickled(filename_d)
+# dos = load_pickled('./data/digi_objects.txt')
 # load aos
-aos = load_pickled('./data/aos.txt')
+filename_a = input('enter the name of the saved list of archival objects: ')
+aos = load_pickled(filename_a)
+# aos = load_pickled('./data/aos.txt')
 
 # create a dict of DO id:uri
 do_uri = {i['digital_object_id']: i['uri'] for i in dos}

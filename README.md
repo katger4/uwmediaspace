@@ -66,7 +66,15 @@ to extract different types of records stored in ASpace.
 
 - **fix_nameorder.py**: if an agent-person name is in direct order, invert it
 
-- **instance_to_do.py**: create digital object records from an archival object's grandchild instance (then, use **link_ao_do.py** to link those archival objects back to the digital objects just created)
+- **instance_to_do.py**: create digital object records from an archival object's grandchild instance 
+
+	a. then, use **aspace_create_new.py** to POST new digital objects to ASpace
+
+	b. use **get_resource_aos.py** to download the archival object records to update and **get_dos.py** to download the digital objects just created
+
+	c. use **link_ao_do.py** to link those archival objects back to the digital objects just created
+
+	d. use **aspace_update.py** to update archival object records on ASpace
 
 - **prep_text_subjects.py**: prepare a text file containing subject terms (e.g. AW browsing terms) for import into ASpace as formatted json records 
 
