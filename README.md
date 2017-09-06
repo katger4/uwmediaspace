@@ -30,7 +30,7 @@ to extract different types of records stored in ASpace.
 
 1. run **get_agents.py** to extract person or corporate name records from ASpace and save that data to a file
 
-2. run **viaf.py** to use a modified version of the [Bentley Historical Library's](http://archival-integration.blogspot.com/2015/07/order-from-chaos-reconciling-local-data.html) approach to:
+2. run **search_viaf_lc.py** to use a modified version of the [Bentley Historical Library's](http://archival-integration.blogspot.com/2015/07/order-from-chaos-reconciling-local-data.html) approach to:
 
 	a. search the [Virtual International Authority File](https://viaf.org/) database for matching name records, 
 
@@ -40,13 +40,13 @@ to extract different types of records stored in ASpace.
 
 	d. use fuzzy matching to reconcile potentially mismatched pairs
 
-	e. and save that data to a csv for quality control
+	e. then search LoC records directly for names lacking a match
 
-3. run **search_lc.py** on the file of mismatched names and names that were not found in VIAF to search LC directly (can provide more matches)
+	f. and save all that data to a csv for quality control
 
-4. run **add_lcnaf.py.py** on the quality controlled list of names/LCNAF terms to update stored agent records with the LCNAF terms found
+3. run **add_lcnaf.py.py** on the quality controlled list of names/LCNAF terms to update stored agent records with the LCNAF terms found
 
-5. run **aspace_update.py** to update records on ASpace
+4. run **aspace_update.py** to update records on ASpace
 
 ## Post-processing ASpace export/Archives West converted EAD documents
 
