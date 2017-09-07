@@ -18,7 +18,7 @@ def write_pickle(item, filename):
 
 ############################################################
 
-# connect to the AS API and the UW Ethno Archives repository
+# connect to the AS API
 backendURL = 'http://localhost:8089'
 
 password = input("Enter the administrative password: ")
