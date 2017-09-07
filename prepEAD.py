@@ -39,10 +39,12 @@ def parse_series(seriesidx):
             d['did']['dao'].pop('daodesc')
 
         if 'scopecontent' in d: 
-            if 'p' not in d['scopecontent']:
-                d['scopecontent']['p'] = {}
-                d['scopecontent']['p'] = d['scopecontent']['#text']
+            if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
+                d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
                 d['scopecontent'].pop('#text')
+            elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is list:
+                d['scopecontent']['list'] = {'item': d['scopecontent']['p']}
+                d['scopecontent'].pop('p')
 
         if 'physdesc' in d['did'] and proceed == 'y':
                 physdesc = d['did']['physdesc']
