@@ -3,6 +3,7 @@
 import json
 from collections import OrderedDict
 import xmltodict
+from iso639 import languages
 
 # this python script prepares an Archives West converted xml document for EAD validation
 
@@ -114,7 +115,7 @@ def combine_multiple_creators(origination):
     if 'corpname' in origination:
         origination.pop('corpname')
     all_creators = '; '.join(filter(None,[people,corps]))
-    creator = OrderedDict()
+    creator = {}
     creator['@role'] = 'creator'
     creator['@rules'] = 'aacr2'
     creator['@encodinganalog'] = '100'
@@ -145,6 +146,22 @@ else:
 # remove unnecessary extref tag if there
 if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
     doc['ead']['eadheader']['filedesc']['publicationstmt'].pop('extref')
+
+# add additional languages if present
+langs = doc['ead']['archdesc']['did']['langmaterial']
+if type(langs) is list:
+    secondlang_text = doc['ead']['archdesc']['did']['langmaterial'][1]
+    firstlang = doc['ead']['archdesc']['did']['langmaterial'][0]['language']
+    try:
+        standard_name = languages.get(name=secondlang_text)
+        code = standard_name.part3
+        secondlang = {'@langcode': 'eng', 
+                        '@encodinganalog': '546', 
+                        '#text': secondlang_text}
+        bothlanguages = [firstlang,secondlang]
+        doc['ead']['archdesc']['did']['langmaterial'] = {'language': bothlanguages}
+    except KeyError:
+        pass        
 
 # remove additional dates if exist for display
 # note: all ethno resources will have the creation date as the first date
@@ -192,11 +209,11 @@ if type(controlaccess) is list:
 else:
     parse_controlaccess(controlaccess)
 
-proceed = input('do you wish to move archival object <physdesc> text to notes for display purposes (this will override general notes)? (y/n) ')
-
 # if a resource contains archival objects in a series, 
 # parse the objects in that series
 if 'dsc' in doc['ead']['archdesc']:
+
+    proceed = input('do you wish to move archival object <physdesc> text to notes for display purposes (this will override general notes)? (y/n) ')
 
     # locate the series containing archival objects
     series = doc['ead']['archdesc']['dsc']['c01']
