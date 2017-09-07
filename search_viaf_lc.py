@@ -65,10 +65,15 @@ def prep_lc_name(lc_name):
     lc_test = re.sub(r'\d+', '', lc_test).strip()
     return lc_test
 
-def create_lc_address(name):
+def create_lc_address(name, agent_type):
     name_list = name.split(' ')
     search_name = '+'.join(name_list)
-    lc_address = "http://id.loc.gov/search/?q="+search_name+"&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fauthorities%2Fnames"
+    if agent_type == 'corporate' or agent_type == 'people':
+        lc_address = "http://id.loc.gov/search/?q="+search_name+"&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fauthorities%2Fnames"
+    elif agent_type == 'geographic':
+        lc_address = "http://id.loc.gov/search/?q="+search_name+"&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fvocabulary%2FgeographicAreas"
+    else:
+        lc_address = "http://id.loc.gov/search/?q="+search_name+"&q=cs%3Ahttp%3A%2F%2Fid.loc.gov%2Fauthorities%2Fsubjects"
     return lc_address
 
 def search_lc(name, lc_address):
@@ -101,86 +106,107 @@ def write_tsv(data, output):
 
 ############################################################
 
-# # load agents
-filename = input("Enter the path to the data file containing the downloaded agent records (e.g. ./data/people.txt or ./data/corp.txt): ")
-# # filename = './data/people.txt'
+# load agents/subjects
+filename = input("Enter the path to the data file containing the downloaded records (e.g. ./data/people.txt): ")
 
 agents = load_pickled(filename)
 
-agent_type = input('Enter the type of agent records (people or corporate): ')
+agent_type = input('Enter the type of records (people, corporate, topical or geographic): ')
 if agent_type == 'corporate':
     search_index = 'corporateNames'
 elif agent_type == 'people':
     search_index = 'personalNames'
+elif agent_type == 'geographic':
+   search_index = 'geographicNames'
 # search_index = 'corporateNames'
 
 source_limit = input('enter the exact name of the name-source to focus on (e.g. local): ')
 
-agents = [i for i in agents if i['display_name'].get('source') == source_limit]
+if agent_type != 'geographic' and agent_type != 'topical':
+    agents = [i for i in agents if i['display_name'].get('source') == source_limit]
+else:
+    agents = [i for i in agents if i.get('source') == source_limit]
 # agents = ['Cicek, Ali Ekber', 'Carter, Bo']
-print('will search for '+str(len(agents))+' possible lcnaf names')
+print('will search for '+str(len(agents))+' possible LoC terms')
 
-spinner = Spinner('searching name authority files...')
-state = 'loading'
+if agent_type != 'topical':
+    spinner = Spinner('searching LoC authority files...')
+    state = 'loading'
 
-noID = []
-matches = {}
+    noID = []
+    matches = {}
 
-while state != 'FINISHED':
-    for agent in agents:
-        search_term = agent['display_name']['sort_name']
-        response = retrieve_viaf_search_results(search_index, search_term)
-        lc_auth_number = get_lc_auth_from_viaf_data(response)
-        if lc_auth_number != '':
-            lc_name = get_lc_term_name(lc_auth_number)
-            if lc_name != None:
-                matches[search_term] = lc_name
-                spinner.next()
+    while state != 'FINISHED':
+        for agent in agents:
+            if agent_type != 'geographic':
+                search_term = agent['display_name']['sort_name']
             else:
+                search_term = agent['title']
+            response = retrieve_viaf_search_results(search_index, search_term)
+            lc_auth_number = get_lc_auth_from_viaf_data(response)
+            if lc_auth_number != '':
+                lc_name = get_lc_term_name(lc_auth_number)
+                if lc_name != None:
+                    matches[search_term] = lc_name
+                    spinner.next()
+                else:
+                    spinner.next()
+            else:
+                noID.append((search_term, 'not found'))
                 spinner.next()
-        else:
-            noID.append((search_term, 'not found'))
-            spinner.next()
-    state = 'FINISHED'
+        state = 'FINISHED'
 
-likely = []
-unlikely = []
+    likely = []
+    unlikely = []
 
-# fuzzy matching to remove unlikely matches
-if agent_type == 'corporate':
-    for name,lc in list(matches.items()):
-        # remove extra 'The' (for band name comparison mostly)
-        # convert UW to University of Washington 
-        name_test = name.replace('The', '').replace('UW ', 'University of Washington ')
-        lc_test = prep_lc_name(lc)
-        ratio = fuzz.token_sort_ratio(name_test, lc_test)
-        if ratio >= 75:
-            likely.append((name,lc))
-        else:
-            unlikely.append((name,lc))
-            
-elif agent_type == 'people':
-    for name,lc in list(matches.items()):
-        lc_test = prep_lc_name(lc)
-        ratio = fuzz.token_sort_ratio(name, lc_test)
-        # print((name, lc, ratio))
-        if ratio >= 80:
-            likely.append((name,lc))
-        else:
-            unlikely.append((name,lc))
+    # fuzzy matching to remove unlikely matches
+    if agent_type == 'corporate':
+        for name,lc in list(matches.items()):
+            # remove extra 'The' (for band name comparison mostly)
+            # convert UW to University of Washington 
+            name_test = name.replace('The', '').replace('UW ', 'University of Washington ')
+            lc_test = prep_lc_name(lc)
+            ratio = fuzz.token_sort_ratio(name_test, lc_test)
+            if ratio >= 75:
+                likely.append((name,lc))
+            else:
+                unlikely.append((name,lc))
+                
+    elif agent_type == 'people':
+        for name,lc in list(matches.items()):
+            lc_test = prep_lc_name(lc)
+            ratio = fuzz.token_sort_ratio(name, lc_test)
+            # print((name, lc, ratio))
+            if ratio >= 80:
+                likely.append((name,lc))
+            else:
+                unlikely.append((name,lc))
 
-print('\nfound '+str(len(likely))+' likely matches')
-print('and '+str(len(unlikely))+' unlikely matches')
-print(str(len(noID))+' names were not found in VIAF')
+    elif agent_type == 'geographic':
+        for name,lc in list(matches.items()):
+            ratio = fuzz.token_sort_ratio(name, lc)
+            # print((name, lc, ratio))
+            if ratio >= 80:
+                likely.append((name,lc))
+            else:
+                unlikely.append((name,lc))
 
-unlikely = sorted(unlikely)+sorted(noID)
+    print('\nfound '+str(len(likely))+' likely matches')
+    print('and '+str(len(unlikely))+' unlikely matches')
+    print(str(len(noID))+' names were not found in VIAF')
+
+if agent_type != 'topical':
+    unlikely = sorted(unlikely)+sorted(noID)
+else:
+    unlikely = [(s['title'],'nothing') for s in agents]
+    likely = None
 
 # create a dict of name:lcnaf
 unlikely_dict = {name:lc for name,lc in unlikely}
 
-print('will search for all '+str(len(unlikely_dict))+' unmatched names in LoC directly')
+print('will search for '+str(len(unlikely_dict))+' terms in LoC directly')
 
-spinner = Spinner('searching LoC name authority files...')
+spinner = Spinner('searching LoC...')
 state = 'loading'
 
 found_names = []
@@ -189,7 +215,7 @@ not_found = []
 while state != 'FINISHED':
     for name in unlikely_dict:
         name = name.replace('UW ', 'University of Washington ')
-        lc_address = create_lc_address(name)
+        lc_address = create_lc_address(name, agent_type)
         new_match = search_lc(name, lc_address)
         if new_match != None:
             found_names.append(new_match)
@@ -205,8 +231,8 @@ print('but '+str(len(not_found))+' were not found')
 write_tsv(sorted(found_names), './data/lc_found_names.tsv')
 write_tsv(sorted(not_found), './data/lc_not_found.tsv')
 
-write_tsv(sorted(likely), './data/likely.tsv')
-# write_tsv(unlikely, './data/unlikely.tsv')
+if likely:
+    write_tsv(sorted(likely), './data/likely.tsv')
 
 print('data saved for quality control!')
 
