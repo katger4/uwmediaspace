@@ -3,6 +3,7 @@
 import json
 from collections import OrderedDict
 import xmltodict
+import re
 
 # this python script prepares the Barton collection for import to AW
 
@@ -32,7 +33,7 @@ def fix_agent_source(name):
 def parse_series(seriesidx):
     # remove extra dao tags and make sure all scopecontent has a p tag
     # remove digitization dates (dont show up in AW as different dates)
-    for d in series[seriesidx]['c02'][:5]:
+    for d in series[seriesidx]['c02']:
         if 'dao' in d['did']:
             d['did']['dao'].pop('@actuate')
             d['did']['dao'].pop('@type')
@@ -42,6 +43,8 @@ def parse_series(seriesidx):
             if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
                 d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
                 d['scopecontent'].pop('#text')
+            elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is not list and 'Information Source: ' in d['scopecontent']['p']:
+                d.pop('scopecontent')
             # turn multi-p scope notes into scope list for display (no newline between notes otherwise)
             elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is list:
                 scope_list = [{'p':p, '@encodinganalog': '5202_'} for p in d['scopecontent']['p'] if not p.startswith('Information Source:')]
@@ -125,9 +128,9 @@ def combine_multiple_creators(origination):
 
 ############################################################
 
-# # load converted EAD
-# path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
-path = './data/wauem_2010012-c.xml'
+# load converted EAD
+path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
+
 repo = '2'
 
 with open(path) as fd:
@@ -210,6 +213,9 @@ if 'dsc' in doc['ead']['archdesc']:
 
 # convert dict to xmlstring
 xmlstr = xmltodict.unparse(doc, pretty=True)
+
+# remove id from title for display
+xmlstr = re.sub('Reel\s\d{5}:\s', '', xmlstr)
 
 # the converter seems to change @actuate: 'onrequest' to @actuate: ''
 # need to change back to onrequest
