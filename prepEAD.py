@@ -43,14 +43,10 @@ def parse_series(seriesidx):
             if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
                 d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
                 d['scopecontent'].pop('#text')
+            # turn multi-p scope notes into scope list for display (no newline between notes otherwise)
             elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is list:
-                d['scopecontent']['list'] = {'item': d['scopecontent']['p']}
-                d['scopecontent'].pop('p')
-
-        if 'physdesc' in d['did'] and proceed == 'y':
-                physdesc = d['did']['physdesc']
-                d['odd'] = {'@encodinganalog': '500',
-                            'p': physdesc}
+                scope_list = [{'p':p, '@encodinganalog': '5202_'} for p in d['scopecontent']['p']]
+                d['scopecontent'] = scope_list
 
         # remove digitization dates for display purposes
         if 'unitdate' in d['did']:
@@ -212,8 +208,6 @@ else:
 # if a resource contains archival objects in a series, 
 # parse the objects in that series
 if 'dsc' in doc['ead']['archdesc']:
-
-    proceed = input('do you wish to move archival object <physdesc> text to notes for display purposes (this will override general notes)? (y/n) ')
 
     # locate the series containing archival objects
     series = doc['ead']['archdesc']['dsc']['c01']

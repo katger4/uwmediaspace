@@ -9,12 +9,6 @@ from itertools import groupby
 
 ############################################################
 
-def dict2xmlstr(mergeddata,pretty=False):
-    fulltext = json.dumps(mergeddata)
-    jsonObj = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(fulltext)
-    xmlStr = xmltodict.unparse(jsonObj,pretty=pretty)
-    return xmlStr
-
 def write_EAD_xml(xmlstr, outfilename):
     with open(outfilename, 'w') as outfile:
         outfile.write(xmlstr[0:39])
@@ -125,8 +119,8 @@ while num_series > 0:
     parse_series(seriesidx)
     num_series -= 1
 
-# convert dict to json to xmlstring
-xmlstr = dict2xmlstr(doc, pretty = True)
+# convert dict to xmlstring
+xmlstr = xmltodict.unparse(doc, pretty=True)
 
 output = input("enter the path and name of the data file to store your prepped EAD in (e.g. ./data/wau_eadname.xml): ")
 write_EAD_xml(xmlstr, output)
