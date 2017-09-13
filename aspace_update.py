@@ -25,7 +25,7 @@ def import_data(item_list):
             posted = post_item(item, item['uri'])
             spinner.next()
             if 'error' in posted.keys():
-                print(('\nList item number: '+str(idx)+' was not posted! See error message. ',posted))
+                print((' List item number: '+str(idx)+' was not posted! See error message. ',posted))
                 next_item = idx+1
                 print('Next list item to post will be: ')
                 pprint.pprint(item_list[next_item])
