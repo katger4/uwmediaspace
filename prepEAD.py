@@ -92,6 +92,10 @@ def parse_controlaccess(subject_type):
         fix_altrender(subject_type, 'geogname')
     if 'genreform' in subject_type:
         fix_altrender(subject_type, 'genreform')
+    if 'persname' in subject_type:
+        parse_origination(subject_type, 'persname')
+    if 'corpname' in subject_type:
+        parse_origination(subject_type, 'corpname')
 
 def parse_origination(origination, agent_type):
     creators_list = []
