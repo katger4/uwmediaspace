@@ -30,6 +30,11 @@ def fix_agent_source(name):
             name['@rules'] = 'aacr2'
             name.pop('@source')
 
+# turn item-level multi-p notes into list for display (no newline between notes otherwise)
+def expand_note(note_type, encodinganalog):
+    note_list = [{'p':p, '@encodinganalog': encodinganalog} for p in d[note_type]['p']]
+    return note_list
+
 def parse_series(seriesidx):
     # remove extra dao tags and make sure all scopecontent has a p tag
     # remove digitization dates (dont show up in AW as different dates)
@@ -45,8 +50,7 @@ def parse_series(seriesidx):
                 d['scopecontent'].pop('#text')
             # turn multi-p scope notes into scope list for display (no newline between notes otherwise)
             elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is list:
-                scope_list = [{'p':p, '@encodinganalog': '5202_'} for p in d['scopecontent']['p']]
-                d['scopecontent'] = scope_list
+                d['scopecontent'] = expand_note('scopecontent', '5202_')
 
         # remove digitization dates for display purposes
         if 'unitdate' in d['did']:
@@ -87,11 +91,19 @@ def fix_altrender(subject_type, subname):
                 c['@altrender'] = 'nodisplay'
                 c['@encodinganalog'] = '690'
 
+def sort_subjects(subject_type, subname):
+    if type(subject_type[subname]) is list:
+        subject_type[subname] = sorted(subject_type[subname], key=lambda k: k['#text'])
+
 def parse_controlaccess(subject_type):
     if 'geogname' in subject_type:
         fix_altrender(subject_type, 'geogname')
+        sort_subjects(subject_type, 'geogname')
     if 'genreform' in subject_type:
         fix_altrender(subject_type, 'genreform')
+        sort_subjects(subject_type, 'genreform')
+    if 'subject' in subject_type:
+        sort_subjects(subject_type, 'subject')
     if 'persname' in subject_type:
         parse_origination(subject_type, 'persname')
     if 'corpname' in subject_type:
@@ -109,7 +121,7 @@ def parse_origination(origination, agent_type):
             creators_list.append(name['#text'])
     return '; '.join(creators_list)
 
-def combine_multiple_creators(origination):
+def combine_multiple_creators(origination, people, corps):
     if 'persname' in origination:
         origination.pop('persname')
     if 'corpname' in origination:
@@ -125,12 +137,12 @@ def combine_multiple_creators(origination):
 ############################################################
 
 # # load converted EAD
-path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
+filename = input("enter the name of the xml file converted using the archives west utility stored in the data folder (e.g. converted_ead.xml): ")
 repo = input("enter the id number of the repository this document was exported from (media = 4; ethno = 2): ")
 # path = './data/wau_waseumc_1987028-c.xml'
 # repo = '4'
 
-with open(path) as fd:
+with open('./data/'+filename) as fd:
     doc = xmltodict.parse(fd.read())
 
 # fix agency codes (sometimes exported strangely)
@@ -187,7 +199,8 @@ for t in titles:
 
 # fix origination source/rules if wrong
 # remove audience="internal" so displays properly
-# if multiple creators, join text as a list so display of creators isn't crammed together
+# if multiple creators, join text as a list so display of creators 
+# isn't crammed together (without whitespace separating individuals)
 origination = doc['ead']['archdesc']['did']['origination']
 origination.pop('@audience')
 
@@ -198,8 +211,7 @@ if 'persname' in origination:
 if 'corpname' in origination:
     corps = parse_origination(origination, 'corpname')
 
-if len(people) + len(corps) > 1:
-    doc['ead']['archdesc']['did']['origination']['persname'] = combine_multiple_creators(origination)
+doc['ead']['archdesc']['did']['origination']['persname'] = combine_multiple_creators(origination, people, corps)
 
 # fix display settings for aw browsing terms
 controlaccess = doc['ead']['archdesc']['controlaccess']['controlaccess']
@@ -209,26 +221,30 @@ if type(controlaccess) is list:
 else:
     parse_controlaccess(controlaccess)
 
-# if a resource contains archival objects in a series, 
-# parse the objects in that series
 if 'dsc' in doc['ead']['archdesc']:
-
-    # locate the series containing archival objects
-    series = doc['ead']['archdesc']['dsc']['c01']
-
-    # indicate how many series of archival objects to parse
-    num_series = int(input("enter the number of series containing archival objects to reformat: "))
-    # num_series = 2
-
-    while num_series > 0:
-        title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
-
-        for idx,i in enumerate(series):
-            if title in i['did']['unittitle']['#text']:
-                seriesidx = idx
-
-        parse_series(seriesidx)
-        num_series -= 1
+    top_level = doc['ead']['archdesc']['dsc']['c01']
+    if type(top_level) is list:
+        # if a resource contains any archival objects in a series, 
+        # parse the objects in that series
+        if any(c['@level'] == 'series' for c in top_level):
+            # indicate how many series of archival objects to parse
+            num_series = int(input("enter the number of series containing archival objects to reformat: "))
+            # num_series = 2
+            while num_series > 0:
+                title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
+                for idx,i in enumerate(top_level):
+                    if title in i['did']['unittitle']['#text']:
+                        seriesidx = idx
+                parse_series(seriesidx)
+                num_series -= 1
+        # otherwise, if top level archival objects are items,
+        # turn multi-p general notes into list for display 
+        # (no newline between notes otherwise)
+        if any(c['@level'] == 'item' for c in top_level):
+            for d in top_level:
+                if 'odd' in d:
+                    if 'p' in d['odd'] and type(d['odd']['p']) is list:
+                        d['odd'] = expand_note('odd', '500')
 
 # convert dict to xmlstring
 xmlstr = xmltodict.unparse(doc, pretty=True)
@@ -237,8 +253,8 @@ xmlstr = xmltodict.unparse(doc, pretty=True)
 # need to change back to onrequest
 # this applies mainly to logsheet links in note text and links to documents in descriptions
 # also, converter or exporter incorrectly label some source elements as 'Library of Congress Subject Headings' when should be 'lcsh'
-xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh')
+xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh').replace('&gt;','')
 
-output = input("enter the path and name of the data file to store your prepped EAD in (e.g. ./data/wau_eadname.xml): ")
-write_EAD_xml(xmlstr, output)
+output = input("enter the name your new EAD document to be output into the data folder (e.g. wau_eadname.xml): ")
+write_EAD_xml(xmlstr, './data/'+output)
 print('EAD saved!')
