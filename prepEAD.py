@@ -4,6 +4,7 @@ import json
 from collections import OrderedDict
 import xmltodict
 from iso639 import languages
+import re
 
 # this python script prepares an Archives West converted xml document for EAD validation
 
@@ -30,49 +31,60 @@ def fix_agent_source(name):
             name['@rules'] = 'aacr2'
             name.pop('@source')
 
+# remove plural extent from items with only 1 thing (1 audiotapes --> 1 audiotape)
+def parse_extent(item):
+    if item.get('did',{}).get('physdesc',{}).get('extent') != None:
+        extent = item['did']['physdesc']['extent']['#text']
+        extent_split = extent.split(' ')
+        if extent_split[0] == '1' and extent_split[-1].endswith('s'):
+            extent_split[-1] = extent_split[-1][:-1]
+            new_extent = ' '.join(extent_split)
+            item['did']['physdesc']['extent']['#text'] = new_extent
+
 # turn item-level multi-p notes into list for display (no newline between notes otherwise)
-def expand_note(note_type, encodinganalog):
-    note_list = [{'p':p, '@encodinganalog': encodinganalog} for p in d[note_type]['p']]
-    return note_list
+def expand_note(item, note_type, encodinganalog):
+    if item.get(note_type, {}).get('p') != None and type(item[note_type]['p']) is list:
+        item[note_type] = [{'p':p, '@encodinganalog': encodinganalog} for p in item[note_type]['p']]
+
+# remove item-level digitization dates for display
+def remove_digi(unitdate):
+    if type(unitdate) != list:
+        try:
+            year = unitdate['#text'][:4]
+            if is_digi(year) == True:
+                d['did'].pop('unitdate')
+        except TypeError:
+            year = unitdate[:4]
+            if is_digi(year) == True:
+                d['did'].pop('unitdate')
+    else:
+        for idx,date in enumerate(unitdate):
+            try:
+                year = date['#text'][:4]
+                if is_digi(year) == True:
+                    unitdate.pop(idx)
+            except TypeError:
+                year = date[:4]
+                if is_digi(year) == True:
+                    unitdate.pop(idx)
 
 def parse_series(seriesidx):
     # remove extra dao tags and make sure all scopecontent has a p tag
     # remove digitization dates (dont show up in AW as different dates)
     for d in series[seriesidx]['c02']:
-        if 'dao' in d['did']:
-            d['did']['dao'].pop('@actuate')
-            d['did']['dao'].pop('@type')
-            d['did']['dao'].pop('daodesc')
 
         if 'scopecontent' in d: 
             if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
                 d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
                 d['scopecontent'].pop('#text')
             # turn multi-p scope notes into scope list for display (no newline between notes otherwise)
-            elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is list:
-                d['scopecontent'] = expand_note('scopecontent', '5202_')
+            expand_note(d, 'scopecontent', '5202_')
 
-        # remove digitization dates for display purposes
+        parse_extent(d)
+
+        # remove item-level digitization dates for display purposes
         if 'unitdate' in d['did']:
-            if type(d['did']['unitdate']) != list:
-                try:
-                    year = d['did']['unitdate']['#text'][:4]
-                    if is_digi(year) == True:
-                        d['did'].pop('unitdate')
-                except TypeError:
-                    year = d['did']['unitdate'][:4]
-                    if is_digi(year) == True:
-                        d['did'].pop('unitdate')
-            else:
-                for idx,date in enumerate(d['did']['unitdate']):
-                    try:
-                        year = date['#text'][:4]
-                        if is_digi(year) == True:
-                            d['did']['unitdate'].pop(idx)
-                    except TypeError:
-                        year = date[:4]
-                        if is_digi(year) == True:
-                            d['did']['unitdate'].pop(idx)
+            remove_digi(d['did']['unitdate'])
 
         # correct name sources/rules as necessary for creators
         if 'origination' in d['did']:
@@ -155,11 +167,19 @@ elif repo == '2':
 else:
     print('invalid repository id provided. please try again.')
 
-# remove unnecessary extref tag if there
+# remove unnecessary extref tag in publicationstmt if there
 if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
     doc['ead']['eadheader']['filedesc']['publicationstmt'].pop('extref')
 
-# add additional languages if present
+# add links to bioghist
+for idx,p in enumerate(doc['ead']['archdesc']['bioghist']['p']):
+    if '(http' in p:
+        link = re.search(r'\((.*?)\)', p).group(1)
+        new_p = re.sub(r'\(.*?\)', '<extref href="'+link+'" show="new" actuate="onrequest">'+link+'</extref>', p)
+        print(new_p)
+        doc['ead']['archdesc']['bioghist']['p'][idx] = new_p
+
+# add additional languages if present for display (langmaterial doesn't display)
 langs = doc['ead']['archdesc']['did']['langmaterial']
 if type(langs) is list:
     secondlang_text = doc['ead']['archdesc']['did']['langmaterial'][1]
@@ -242,9 +262,14 @@ if 'dsc' in doc['ead']['archdesc']:
         # (no newline between notes otherwise)
         if any(c['@level'] == 'item' for c in top_level):
             for d in top_level:
-                if 'odd' in d:
-                    if 'p' in d['odd'] and type(d['odd']['p']) is list:
-                        d['odd'] = expand_note('odd', '500')
+                expand_note(d, 'odd', '500')
+                parse_extent(d)
+    else:
+        if top_level['@level'] == 'item': 
+            expand_note(top_level, 'odd', '500')
+            parse_extent(top_level)
+
+
 
 # convert dict to xmlstring
 xmlstr = xmltodict.unparse(doc, pretty=True)
@@ -253,7 +278,7 @@ xmlstr = xmltodict.unparse(doc, pretty=True)
 # need to change back to onrequest
 # this applies mainly to logsheet links in note text and links to documents in descriptions
 # also, converter or exporter incorrectly label some source elements as 'Library of Congress Subject Headings' when should be 'lcsh'
-xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh').replace('&gt;','')
+xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh').replace('&gt;','>').replace('&lt;','<')
 
 output = input("enter the name your new EAD document to be output into the data folder (e.g. wau_eadname.xml): ")
 write_EAD_xml(xmlstr, './data/'+output)
