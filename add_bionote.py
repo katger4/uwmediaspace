@@ -2,7 +2,7 @@
 
 import pickle
 
-# this python script takes in a list of resources from an ASpace repo, filters that list by a specified creator, then adds a biographical note (from a text file) to each resource 
+# this python script takes in a list of resources from an ASpace repo, filters that list by a specified creator, then adds a biographical note or a historical note (from a text file) to each resource 
 
 ############################################################
 
@@ -27,14 +27,6 @@ filename_t = input('enter the path to the text file containing the biographical/
 content = open_txt(filename_t)
 print('Formatted note text to add:\n'+content)
 
-bioghist = {'jsonmodel_type': 'note_multipart',
-			'publish': False,
-			'label': 'Biographical Note',
-			'subnotes': [{'content': content,
-						  'jsonmodel_type': 'note_text',
-						  'publish': False}],
-			'type': 'bioghist'}
-
 # # load resources
 filename_r = input('enter the path to the saved list of resources (e.g. ./data/resources.txt): ')
 resources = load_pickled(filename_r)
@@ -44,10 +36,20 @@ creator_id = input('enter the ASpace ID of the creator to limit the resource lis
 
 if creator_type == 'person':
 	agent_ref = '/agents/people/'+creator_id
+	note_label = 'Biographical Note'
 elif creator_type == 'corporate':
 	agent_ref = '/agents/corporate_entities/'+creator_id
+	note_label = 'Historical Note'
 else:
 	print('invalid creator type provided.')
+
+bioghist = {'jsonmodel_type': 'note_multipart',
+			'publish': False,
+			'label': note_label,
+			'subnotes': [{'content': content,
+						  'jsonmodel_type': 'note_text',
+						  'publish': False}],
+			'type': 'bioghist'}
 
 # limit resources by creator
 resources_to_edit = [i for i in resources if any(a.get('ref') == agent_ref for a in i['linked_agents'])]
@@ -58,7 +60,7 @@ for i in resources_to_edit:
 	if '[Insert ARK ID]' in i['ead_location']:
 		# check for existing bioghist content
 		if any(n.get('type') == 'bioghist' for n in i['notes']):
-			proceed = input('the resource '+i['id_0']+': '+i['title']+' already has a biographical/historical note. do you want to overrwrite that note with new content? (y/n)')
+			proceed = input('the resource '+i['id_0']+': '+i['title']+' already has a biographical/historical note. do you want to overrwrite that note with new content? (y/n) ')
 			if proceed == 'y':
 				i['notes'] = [n for n in i['notes'] if n['type'] != 'bioghist']
 				i['notes'].append(bioghist)

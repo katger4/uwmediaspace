@@ -33,7 +33,7 @@ if connectASpace.status_code == 200:
 else:
     print(connectASpace.status_code)
 
-print('loading all agent-people IDs...')
+print('loading all subject IDs...')
 subject_ids = get_item('/subjects?all_ids=True')
 
 spinner = Spinner('loading all subjects...')
@@ -49,7 +49,7 @@ while state != 'FINISHED':
 print(' successfully downloaded '+str(len(all_subs))+' records')
 
 if all_subs != []:
-    output = input("enter the path and name of the data file to store your saved agents in (e.g. ./data/subjects.txt): ")
+    output = input("enter the path and name of the data file to store your saved subjects in (e.g. ./data/subjects.txt): ")
     write_pickle(all_subs, output)
     print('data saved!')
 else:
