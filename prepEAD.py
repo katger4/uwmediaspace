@@ -176,7 +176,6 @@ for idx,p in enumerate(doc['ead']['archdesc']['bioghist']['p']):
     if '(http' in p:
         link = re.search(r'\((.*?)\)', p).group(1)
         new_p = re.sub(r'\(.*?\)', '<extref href="'+link+'" show="new" actuate="onrequest">'+link+'</extref>', p)
-        print(new_p)
         doc['ead']['archdesc']['bioghist']['p'][idx] = new_p
 
 # add additional languages if present for display (langmaterial doesn't display)
@@ -268,8 +267,6 @@ if 'dsc' in doc['ead']['archdesc']:
         if top_level['@level'] == 'item': 
             expand_note(top_level, 'odd', '500')
             parse_extent(top_level)
-
-
 
 # convert dict to xmlstring
 xmlstr = xmltodict.unparse(doc, pretty=True)
