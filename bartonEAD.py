@@ -30,25 +30,46 @@ def fix_agent_source(name):
             name['@rules'] = 'aacr2'
             name.pop('@source')
 
+# turn item-level multi-p notes into list for display (no newline between notes otherwise)
+def expand_note(item, note_type, encodinganalog):
+    if item.get(note_type, {}).get('p') != None and type(item[note_type]['p']) is list:
+        item[note_type] = [{'p':p, '@encodinganalog': encodinganalog} for p in item[note_type]['p'] if p != None and not p.startswith('Information Source:')]
+
+# remove item-level digitization dates for display
+def remove_digi(d, unitdate):
+    if type(unitdate) != list:
+        try:
+            year = unitdate['#text'][:4]
+            if is_digi(year) == True:
+                d['did'].pop('unitdate')
+        except TypeError:
+            year = unitdate[:4]
+            if is_digi(year) == True:
+                d['did'].pop('unitdate')
+    else:
+        for idx,date in enumerate(unitdate):
+            try:
+                year = date['#text'][:4]
+                if is_digi(year) == True:
+                    unitdate.pop(idx)
+            except TypeError:
+                year = date[:4]
+                if is_digi(year) == True:
+                    unitdate.pop(idx)
+
 def parse_series(seriesidx):
     # remove extra dao tags and make sure all scopecontent has a p tag
     # remove digitization dates (dont show up in AW as different dates)
     for d in series[seriesidx]['c02']:
-        if 'dao' in d['did']:
-            d['did']['dao'].pop('@actuate')
-            d['did']['dao'].pop('@type')
-            d['did']['dao'].pop('daodesc')
 
         if 'scopecontent' in d: 
             if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
                 d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
                 d['scopecontent'].pop('#text')
-            elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is not list and 'Information Source: ' in d['scopecontent']['p']:
+            if 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is not list and 'Information Source: ' in d['scopecontent']['p']:
                 d.pop('scopecontent')
-            # turn multi-p scope notes into scope list for display (no newline between notes otherwise)
-            elif 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is list:
-                scope_list = [{'p':p, '@encodinganalog': '5202_'} for p in d['scopecontent']['p'] if not p.startswith('Information Source:')]
-                d['scopecontent'] = scope_list
+            
+            expand_note(d, 'scopecontent', '5202_')
 
         # move physdesc text to gen notes so it displays
         if 'physdesc' in d['did']:
@@ -58,25 +79,7 @@ def parse_series(seriesidx):
 
         # remove digitization dates for display purposes
         if 'unitdate' in d['did']:
-            if type(d['did']['unitdate']) != list:
-                try:
-                    year = d['did']['unitdate']['#text'][:4]
-                    if is_digi(year) == True:
-                        d['did'].pop('unitdate')
-                except TypeError:
-                    year = d['did']['unitdate'][:4]
-                    if is_digi(year) == True:
-                        d['did'].pop('unitdate')
-            else:
-                for idx,date in enumerate(d['did']['unitdate']):
-                    try:
-                        year = date['#text'][:4]
-                        if is_digi(year) == True:
-                            d['did']['unitdate'].pop(idx)
-                    except TypeError:
-                        year = date[:4]
-                        if is_digi(year) == True:
-                            d['did']['unitdate'].pop(idx)
+            remove_digi(d, d['did']['unitdate'])
 
         # correct name sources/rules as necessary for creators
         if 'origination' in d['did']:
@@ -95,11 +98,23 @@ def fix_altrender(subject_type, subname):
                 c['@altrender'] = 'nodisplay'
                 c['@encodinganalog'] = '690'
 
+def sort_subjects(subject_type, subname):
+    if type(subject_type[subname]) is list:
+        subject_type[subname] = sorted(subject_type[subname], key=lambda k: k['#text'])
+
 def parse_controlaccess(subject_type):
     if 'geogname' in subject_type:
         fix_altrender(subject_type, 'geogname')
+        sort_subjects(subject_type, 'geogname')
     if 'genreform' in subject_type:
         fix_altrender(subject_type, 'genreform')
+        sort_subjects(subject_type, 'genreform')
+    if 'subject' in subject_type:
+        sort_subjects(subject_type, 'subject')
+    if 'persname' in subject_type:
+        parse_origination(subject_type, 'persname')
+    if 'corpname' in subject_type:
+        parse_origination(subject_type, 'corpname')
 
 def parse_origination(origination, agent_type):
     creators_list = []
@@ -129,20 +144,16 @@ def combine_multiple_creators(origination):
 ############################################################
 
 # load converted EAD
-path = input("enter the path and name of the xml file converted using the archives west utility (e.g. ./data/converted_ead.xml): ")
+filename = input("enter the path and name of the xml file converted using the archives west utility (e.g. converted_ead.xml): ")
 
 repo = '2'
 
-with open(path) as fd:
+with open('./data/'+filename) as fd:
     doc = xmltodict.parse(fd.read())
 
 # fix agency codes (sometimes exported strangely)
 doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'wauem'
-doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'wauem'
-
-# remove unnecessary extref tag if there
-if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
-    doc['ead']['eadheader']['filedesc']['publicationstmt'].pop('extref')      
+doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'wauem'      
 
 # remove additional dates if exist for display
 # note: all ethno resources will have the creation date as the first date
@@ -189,27 +200,23 @@ if type(controlaccess) is list:
 else:
     parse_controlaccess(controlaccess)
 
-# if a resource contains archival objects in a series, 
-# parse the objects in that series
-if 'dsc' in doc['ead']['archdesc']:
+# locate the series containing archival objects
+series = doc['ead']['archdesc']['dsc']['c01']
 
-    # locate the series containing archival objects
-    series = doc['ead']['archdesc']['dsc']['c01']
+# indicate how many series of archival objects to parse
+# num_series = int(input("enter the number of series containing archival objects to reformat: "))
+num_series = 2
 
-    # indicate how many series of archival objects to parse
-    # num_series = int(input("enter the number of series containing archival objects to reformat: "))
-    num_series = 1
+while num_series > 0:
+    
+    title = input("enter the title of a series containing archival objects (e.g. Reels, Cassettes): ")
 
-    while num_series > 0:
-        # title = input("enter the title of a series containing archival objects (e.g. Sound Recordings): ")
-        title = 'Reels'
+    for idx,i in enumerate(series):
+        if title in i['did']['unittitle']['#text']:
+            seriesidx = idx
 
-        for idx,i in enumerate(series):
-            if title in i['did']['unittitle']['#text']:
-                seriesidx = idx
-
-        parse_series(seriesidx)
-        num_series -= 1
+    parse_series(seriesidx)
+    num_series -= 1
 
 # convert dict to xmlstring
 xmlstr = xmltodict.unparse(doc, pretty=True)
@@ -223,6 +230,6 @@ xmlstr = re.sub('Reel\s\d{5}:\s', '', xmlstr)
 # also, converter or exporter incorrectly label some source elements as 'Library of Congress Subject Headings' when should be 'lcsh'
 xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh')
 
-output = input("enter the path and name of the data file to store your prepped EAD in (e.g. ./data/wau_eadname.xml): ")
-write_EAD_xml(xmlstr, output)
+output = input("enter the name your new EAD document to be output into the data folder (e.g. wau_eadname.xml): ")
+write_EAD_xml(xmlstr, './data/'+output)
 print('EAD saved!')
