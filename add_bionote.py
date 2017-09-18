@@ -52,7 +52,7 @@ bioghist = {'jsonmodel_type': 'note_multipart',
 			'type': 'bioghist'}
 
 # limit resources by creator
-resources_to_edit = [i for i in resources if any(a.get('ref') == agent_ref for a in i['linked_agents'])]
+resources_to_edit = [i for i in resources if any(a.get('ref') == agent_ref and a.get('role') == 'creator' for a in i['linked_agents'])]
 
 updates = []
 for i in resources_to_edit:
