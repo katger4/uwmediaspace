@@ -262,10 +262,12 @@ if 'dsc' in doc['ead']['archdesc']:
         if any(c['@level'] == 'item' for c in top_level):
             for d in top_level:
                 expand_note(d, 'odd', '500')
+                expand_note(d, 'scopecontent', '5202_')
                 parse_extent(d)
     else:
         if top_level['@level'] == 'item': 
             expand_note(top_level, 'odd', '500')
+            expand_note(top_level, 'scopecontent', '5202_')
             parse_extent(top_level)
 
 # convert dict to xmlstring
