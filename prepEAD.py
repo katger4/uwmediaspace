@@ -148,24 +148,11 @@ def combine_multiple_creators(origination, people, corps):
 
 ############################################################
 
-# # load converted EAD
+# load converted EAD
 filename = input("enter the name of the xml file converted using the archives west utility stored in the data folder (e.g. converted_ead.xml): ")
-repo = input("enter the id number of the repository this document was exported from (media = 4; ethno = 2): ")
-# path = './data/wau_waseumc_1987028-c.xml'
-# repo = '4'
 
 with open('./data/'+filename) as fd:
     doc = xmltodict.parse(fd.read())
-
-# fix agency codes (sometimes exported strangely)
-if repo == '4':
-    doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'waseumc'
-    doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'waseumc'
-elif repo == '2':
-    doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'wauem'
-    doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'wauem'
-else:
-    print('invalid repository id provided. please try again.')
 
 # remove unnecessary extref tag in publicationstmt if there
 if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
