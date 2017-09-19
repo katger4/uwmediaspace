@@ -144,7 +144,7 @@ def combine_multiple_creators(origination):
 ############################################################
 
 # load converted EAD
-filename = input("enter the path and name of the xml file converted using the archives west utility (e.g. converted_ead.xml): ")
+filename = input("enter the name of the xml file converted using the archives west utility (e.g. converted_ead.xml): ")
 
 repo = '2'
 
@@ -204,8 +204,7 @@ else:
 series = doc['ead']['archdesc']['dsc']['c01']
 
 # indicate how many series of archival objects to parse
-# num_series = int(input("enter the number of series containing archival objects to reformat: "))
-num_series = 2
+num_series = int(input("enter the number of series containing archival objects to reformat: "))
 
 while num_series > 0:
     
