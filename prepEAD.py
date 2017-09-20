@@ -190,8 +190,10 @@ if type(resource_date) is list:
     doc['ead']['archdesc']['did']['unitdate'] = resource_date[0]
     # save creation date for use in title parsing below
     date_text = resource_date[0]['#text']
+    norm = resource_date[0]['@normal']
 else:
     date_text = resource_date['#text']
+    norm = resource_date['@normal']
 
 # remove the date tag from the title element (seems to be displaying improperly)
 # add creation date to title text if not undated
@@ -200,7 +202,11 @@ for t in titles:
     if 'date' in t:
         #t.move_to_end('date') # last=False moves to beginning)
         t.pop('date')
-        if date_text != 'Undated':
+        if '/' in norm:
+            begin,end = norm.split('/')
+        else:
+            begin,end = None,None
+        if date_text != 'Undated' and begin != end:
             t['#text'] = t['#text']+', '+date_text
 
 # fix origination source/rules if wrong
