@@ -61,22 +61,22 @@ def create_title(c):
 def create_notes(c):
     sideA,sideB,rel,info = None,None,None,None
     if c['Side B - Title'] != '' and c['Side A - Title'] != '':
-        sideA = '<item>Side A: '+c['Side A - Title']+'</item>'
+        sideA = '<p>Side A: '+c['Side A - Title']+'</p>'
     
     if c['Side B - Title'] != '':
-        sideB = '<item>Side B: '+c['Side B - Title']+'</item>'
+        sideB = '<p>Side B: '+c['Side B - Title']+'</p>'
     
     if c['Relation'] != '':
-        rel = '<item>Relation: '+c['Relation']+'</item>'
+        rel = '<p>Relation: '+c['Relation']+'</p>'
         
     if c['Additional Information'] != '':
-        info = '<item>'+c['Additional Information']+'</item>'
+        info = '<p>'+c['Additional Information']+'</p>'
         
-    content_list = ['<list>',sideA,sideB,rel,info,'</list>']
+    content_list = [sideA,sideB,rel,info]
     content = ''.join(filter(None, content_list))
     
     note_list = []
-    if content != '<list> </list>':
+    if content != None:
         note_list = [{'jsonmodel_type': 'note_multipart',
                           'publish': False,
                           'subnotes': [{'content': content,
