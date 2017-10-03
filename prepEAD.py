@@ -159,11 +159,19 @@ if 'extref' in doc['ead']['eadheader']['filedesc']['publicationstmt']:
     doc['ead']['eadheader']['filedesc']['publicationstmt'].pop('extref')
 
 # add links to bioghist
-for idx,p in enumerate(doc['ead']['archdesc']['bioghist']['p']):
-    if '(http' in p:
-        link = re.search(r'\((.*?)\)', p).group(1)
-        new_p = re.sub(r'\(.*?\)', '<extref href="'+link+'" show="new" actuate="onrequest">'+link+'</extref>', p)
-        doc['ead']['archdesc']['bioghist']['p'][idx] = new_p
+bioghist = doc['ead']['archdesc']['bioghist']['p']
+if type(bioghist) is list:
+    for idx,p in enumerate(doc['ead']['archdesc']['bioghist']['p']):
+        if '(http' in p:
+            link = re.search(r'\((.*?)\)', p).group(1)
+            new_p = re.sub(r'\(.*?\)', '<extref href="'+link+'" show="new" actuate="onrequest">'+link+'</extref>', p)
+            doc['ead']['archdesc']['bioghist']['p'][idx] = new_p
+else:
+    if '(http' in bioghist:
+        link = re.search(r'\((.*?)\)', bioghist).group(1)
+        new_p = re.sub(r'\(.*?\)', '<extref href="'+link+'" show="new" actuate="onrequest">'+link+'</extref>', bioghist)
+        doc['ead']['archdesc']['bioghist']['p'] = new_p
+
 
 # add additional languages if present for display (langmaterial doesn't display)
 langs = doc['ead']['archdesc']['did']['langmaterial']
