@@ -196,9 +196,12 @@ if type(langs) is list:
 resource_date = doc['ead']['archdesc']['did']['unitdate']
 if type(resource_date) is list:
     doc['ead']['archdesc']['did']['unitdate'] = resource_date[0]
-    # save creation date for use in title parsing below
+    # save creation date for use in title parsing below unless date is 'Undated'
     date_text = resource_date[0]['#text']
-    norm = resource_date[0]['@normal']
+    if '@normal' in resource_date[0]:
+        norm = resource_date[0]['@normal']
+    else:
+        norm = ''
 else:
     date_text = resource_date['#text']
     norm = resource_date['@normal']
