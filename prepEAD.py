@@ -5,6 +5,7 @@ from collections import OrderedDict
 import xmltodict
 from iso639 import languages
 import re
+import configparser
 
 # this python script prepares an Archives West converted xml document for EAD validation
 
@@ -148,10 +149,14 @@ def combine_multiple_creators(origination, people, corps):
 
 ############################################################
 
-# load converted EAD
-filename = input("enter the name of the xml file converted using the archives west utility stored in the data folder (e.g. converted_ead.xml): ")
+# load file origin/destingation configuration
+config = configparser.ConfigParser()
+config.read('./data/EAD_settings.cfg')
 
-with open('./data/'+filename) as fd:
+# load converted EAD
+filename = input("enter the name of the xml file converted using the archives west utility stored in the Downloads folder (e.g. converted_ead.xml): ")
+
+with open(config['Paths']['origin']+filename) as fd:
     doc = xmltodict.parse(fd.read())
 
 # remove unnecessary extref tag in publicationstmt if there
@@ -283,6 +288,5 @@ xmlstr = xmltodict.unparse(doc, pretty=True)
 # also, converter or exporter incorrectly label some source elements as 'Library of Congress Subject Headings' when should be 'lcsh'
 xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh').replace('&gt;','>').replace('&lt;','<')
 
-output = input("enter the name your new EAD document to be output into the data folder (e.g. wau_eadname.xml): ")
-write_EAD_xml(xmlstr, './data/'+output)
+write_EAD_xml(xmlstr, config['Paths']['destination']+filename)
 print('EAD saved!')
