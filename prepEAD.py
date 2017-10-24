@@ -11,6 +11,15 @@ import configparser
 
 ############################################################
 
+def read_agent_relators(text_file):
+    with open(text_file) as f:
+        content = f.readlines()
+        relators = {}
+        for line in content:
+            k,v = line.strip().split(': ')
+            relators[k] = v
+        return relators
+
 def is_digi(year):
     if year.isdigit() and year > '2008':
         return True
@@ -23,14 +32,6 @@ def write_EAD_xml(xmlstr, outfilename):
         outfile.write('<!DOCTYPE ead PUBLIC "+//ISBN 1-931666-00-8//DTD ead.dtd (Encoded Archival Description (EAD) Version 2002)//EN" "ead.dtd">')
         outfile.write('\n')
         outfile.write(xmlstr[39:])
-
-def fix_agent_source(name):
-    if '@source' in name and name['@source'] != 'lcnaf':
-        if '@rules' in name and name['@rules'] == 'aacr2':
-            name.pop('@source')
-        else:
-            name['@rules'] = 'aacr2'
-            name.pop('@source')
 
 # remove plural extent from items with only 1 thing (1 audiotapes --> 1 audiotape)
 def parse_extent(item):
@@ -94,6 +95,14 @@ def parse_series(seriesidx):
             if 'corpname' in d['did']['origination']:
                 cor = parse_origination(d['did']['origination'], 'corpname')
 
+def fix_agent_source(name):
+    if '@source' in name and name['@source'] != 'lcnaf':
+        if '@rules' in name and name['@rules'] == 'aacr2':
+            name.pop('@source')
+        else:
+            name['@rules'] = 'aacr2'
+            name.pop('@source')
+
 def fix_altrender(subject_type, subname):
     if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'archiveswest':
         subject_type[subname]['@altrender'] = 'nodisplay'
@@ -107,6 +116,10 @@ def fix_altrender(subject_type, subname):
 def sort_subjects(subject_type, subname):
     if type(subject_type[subname]) is list:
         subject_type[subname] = sorted(subject_type[subname], key=lambda k: k['#text'])
+
+def correct_relator_abbreviations(name, relators):
+    if '@role' in name:
+        name['@role'] = relators[name['@role']].lower()
 
 def parse_controlaccess(subject_type):
     if 'geogname' in subject_type:
@@ -127,10 +140,12 @@ def parse_origination(origination, agent_type):
     if type(origination[agent_type]) != list:
         name = origination[agent_type]
         fix_agent_source(name)
+        correct_relator_abbreviations(name, relators)
         creators_list.append(name['#text'])
     else:
         for name in origination[agent_type]:
             fix_agent_source(name)
+            correct_relator_abbreviations(name, relators)
             creators_list.append(name['#text'])
     return '; '.join(creators_list)
 
@@ -152,6 +167,9 @@ def combine_multiple_creators(origination, people, corps):
 # load file origin/destingation configuration
 config = configparser.ConfigParser()
 config.read('./data/EAD_settings.cfg')
+
+# load agent relators conversion
+relators = read_agent_relators('./data/agent_relators.txt')
 
 # load converted EAD
 filename = input("enter the name of the xml file converted using the archives west utility stored in the Downloads folder (e.g. converted_ead.xml): ")
