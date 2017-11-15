@@ -11,28 +11,6 @@ import configparser
 
 ############################################################
 
-def read_agent_relators(text_file):
-    with open(text_file) as f:
-        content = f.readlines()
-        relators = {}
-        for line in content:
-            k,v = line.strip().split(': ')
-            relators[k] = v
-        return relators
-
-def is_digi(year):
-    if year.isdigit() and year > '2008':
-        return True
-    else:
-        return False
-
-def write_EAD_xml(xmlstr, outfilename):
-    with open(outfilename, 'w') as outfile:
-        outfile.write(xmlstr[0:39])
-        outfile.write('<!DOCTYPE ead PUBLIC "+//ISBN 1-931666-00-8//DTD ead.dtd (Encoded Archival Description (EAD) Version 2002)//EN" "ead.dtd">')
-        outfile.write('\n')
-        outfile.write(xmlstr[39:])
-
 # remove plural extent from items with only 1 thing (1 audiotapes --> 1 audiotape)
 def parse_extent(item):
     if item.get('did',{}).get('physdesc',{}).get('extent') != None:
@@ -47,6 +25,13 @@ def parse_extent(item):
 def expand_note(item, note_type, encodinganalog):
     if item.get(note_type, {}).get('p') != None and type(item[note_type]['p']) is list:
         item[note_type] = [{'p':p, '@encodinganalog': encodinganalog} for p in item[note_type]['p']]
+
+############ date functions ############
+def is_digi(year):
+    if year.isdigit() and year > '2008':
+        return True
+    else:
+        return False
 
 # remove item-level digitization dates for display
 def remove_digi(unitdate):
@@ -69,40 +54,9 @@ def remove_digi(unitdate):
                 year = date[:4]
                 if is_digi(year) == True:
                     unitdate.pop(idx)
+############ date functions ############
 
-def parse_series(seriesidx):
-    # remove extra dao tags and make sure all scopecontent has a p tag
-    # remove digitization dates (dont show up in AW as different dates)
-    for d in series[seriesidx]['c02']:
-
-        if 'scopecontent' in d: 
-            if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
-                d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
-                d['scopecontent'].pop('#text')
-            # turn multi-p scope notes into scope list for display (no newline between notes otherwise)
-            expand_note(d, 'scopecontent', '5202_')
-
-        parse_extent(d)
-
-        # remove item-level digitization dates for display purposes
-        if 'unitdate' in d['did']:
-            remove_digi(d['did']['unitdate'])
-
-        # correct name sources/rules as necessary for creators
-        if 'origination' in d['did']:
-            if 'persname' in d['did']['origination']:
-                ppl = parse_origination(d['did']['origination'], 'persname')
-            if 'corpname' in d['did']['origination']:
-                cor = parse_origination(d['did']['origination'], 'corpname')
-
-def fix_agent_source(name):
-    if '@source' in name and name['@source'] != 'lcnaf':
-        if '@rules' in name and name['@rules'] == 'aacr2':
-            name.pop('@source')
-        else:
-            name['@rules'] = 'aacr2'
-            name.pop('@source')
-
+############ subject functions ############
 def fix_altrender(subject_type, subname):
     if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'archiveswest':
         subject_type[subname]['@altrender'] = 'nodisplay'
@@ -117,10 +71,6 @@ def sort_subjects(subject_type, subname):
     if type(subject_type[subname]) is list:
         subject_type[subname] = sorted(subject_type[subname], key=lambda k: k['#text'])
 
-def correct_relator_abbreviations(name, relators):
-    if '@role' in name:
-        name['@role'] = relators[name['@role']].lower()
-
 def parse_controlaccess(subject_type):
     if 'geogname' in subject_type:
         fix_altrender(subject_type, 'geogname')
@@ -134,6 +84,29 @@ def parse_controlaccess(subject_type):
         parse_origination(subject_type, 'persname')
     if 'corpname' in subject_type:
         parse_origination(subject_type, 'corpname')
+############ subject functions ############
+
+############ agent functions ############
+def read_agent_relators(text_file):
+    with open(text_file) as f:
+        content = f.readlines()
+        relators = {}
+        for line in content:
+            k,v = line.strip().split(': ')
+            relators[k] = v
+        return relators
+
+def correct_relator_abbreviations(name, relators):
+    if '@role' in name:
+        name['@role'] = relators[name['@role']].lower()
+
+def fix_agent_source(name):
+    if '@source' in name and name['@source'] != 'lcnaf':
+        if '@rules' in name and name['@rules'] == 'aacr2':
+            name.pop('@source')
+        else:
+            name['@rules'] = 'aacr2'
+            name.pop('@source')
 
 def parse_origination(origination, agent_type):
     creators_list = []
@@ -161,6 +134,39 @@ def combine_multiple_creators(origination, people, corps):
     creator['@encodinganalog'] = '100'
     creator['#text'] = all_creators
     return creator
+############ agent functions ############
+
+def parse_series(seriesidx):
+    # remove extra dao tags and make sure all scopecontent has a p tag
+    # remove digitization dates (dont show up in AW as different dates)
+    for d in series[seriesidx]['c02']:
+
+        if 'scopecontent' in d: 
+            if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
+                d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
+                d['scopecontent'].pop('#text')
+            # turn multi-p scope notes into scope list for display (no newline between notes otherwise)
+            expand_note(d, 'scopecontent', '5202_')
+
+        parse_extent(d)
+
+        # remove item-level digitization dates for display purposes
+        if 'unitdate' in d['did']:
+            remove_digi(d['did']['unitdate'])
+
+        # correct name sources/rules as necessary for creators
+        if 'origination' in d['did']:
+            if 'persname' in d['did']['origination']:
+                ppl = parse_origination(d['did']['origination'], 'persname')
+            if 'corpname' in d['did']['origination']:
+                cor = parse_origination(d['did']['origination'], 'corpname')
+
+def write_EAD_xml(xmlstr, outfilename):
+    with open(outfilename, 'w') as outfile:
+        outfile.write(xmlstr[0:39])
+        outfile.write('<!DOCTYPE ead PUBLIC "+//ISBN 1-931666-00-8//DTD ead.dtd (Encoded Archival Description (EAD) Version 2002)//EN" "ead.dtd">')
+        outfile.write('\n')
+        outfile.write(xmlstr[39:])
 
 ############################################################
 
