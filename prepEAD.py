@@ -156,10 +156,17 @@ def parse_series(seriesidx):
 
         # correct name sources/rules as necessary for creators
         if 'origination' in d['did']:
-            if 'persname' in d['did']['origination']:
-                ppl = parse_origination(d['did']['origination'], 'persname')
-            if 'corpname' in d['did']['origination']:
-                cor = parse_origination(d['did']['origination'], 'corpname')
+            if type(d['did']['origination']) is not list:
+                if 'persname' in d['did']['origination']:
+                    parse_origination(d['did']['origination'], 'persname')
+                if 'corpname' in d['did']['origination']:
+                    parse_origination(d['did']['origination'], 'corpname')
+            else:
+                for o in d['did']['origination']:
+                    if 'persname' in o:
+                        parse_origination(o, 'persname')
+                    if 'corpname' in o:
+                        parse_origination(o, 'corpname')
 
 def write_EAD_xml(xmlstr, outfilename):
     with open(outfilename, 'w') as outfile:

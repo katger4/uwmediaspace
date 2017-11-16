@@ -4,36 +4,24 @@ import json
 from collections import OrderedDict
 import xmltodict
 import re
+import configparser
 
 # this python script prepares the Barton collection for import to AW
 
 ############################################################
 
+# turn item-level multi-p notes into list for display (no newline between notes otherwise)
+def expand_note(item, note_type, encodinganalog):
+    if item.get(note_type, {}).get('p') != None and type(item[note_type]['p']) is list:
+        item[note_type] = [{'p':p, '@encodinganalog': encodinganalog} for p in item[note_type]['p'] if p != None and not p.startswith('Information Source:')]
+
+############ date functions ############
+# check if a second date is actually digitization date
 def is_digi(year):
     if year.isdigit() and year > '2008':
         return True
     else:
         return False
-
-def write_EAD_xml(xmlstr, outfilename):
-    with open(outfilename, 'w') as outfile:
-        outfile.write(xmlstr[0:39])
-        outfile.write('<!DOCTYPE ead PUBLIC "+//ISBN 1-931666-00-8//DTD ead.dtd (Encoded Archival Description (EAD) Version 2002)//EN" "ead.dtd">')
-        outfile.write('\n')
-        outfile.write(xmlstr[39:])
-
-def fix_agent_source(name):
-    if '@source' in name and name['@source'] != 'lcnaf':
-        if '@rules' in name and name['@rules'] == 'aacr2':
-            name.pop('@source')
-        else:
-            name['@rules'] = 'aacr2'
-            name.pop('@source')
-
-# turn item-level multi-p notes into list for display (no newline between notes otherwise)
-def expand_note(item, note_type, encodinganalog):
-    if item.get(note_type, {}).get('p') != None and type(item[note_type]['p']) is list:
-        item[note_type] = [{'p':p, '@encodinganalog': encodinganalog} for p in item[note_type]['p'] if p != None and not p.startswith('Information Source:')]
 
 # remove item-level digitization dates for display
 def remove_digi(d, unitdate):
@@ -56,38 +44,9 @@ def remove_digi(d, unitdate):
                 year = date[:4]
                 if is_digi(year) == True:
                     unitdate.pop(idx)
+############ date functions ############
 
-def parse_series(seriesidx):
-    # remove extra dao tags and make sure all scopecontent has a p tag
-    # remove digitization dates (dont show up in AW as different dates)
-    for d in series[seriesidx]['c02']:
-
-        if 'scopecontent' in d: 
-            if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
-                d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
-                d['scopecontent'].pop('#text')
-            if 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is not list and 'Information Source: ' in d['scopecontent']['p']:
-                d.pop('scopecontent')
-            
-            expand_note(d, 'scopecontent', '5202_')
-
-        # move physdesc text to gen notes so it displays
-        if 'physdesc' in d['did']:
-                physdesc = d['did']['physdesc']
-                d['odd'] = {'@encodinganalog': '500',
-                            'p': physdesc}
-
-        # remove digitization dates for display purposes
-        if 'unitdate' in d['did']:
-            remove_digi(d, d['did']['unitdate'])
-
-        # correct name sources/rules as necessary for creators
-        if 'origination' in d['did']:
-            if 'persname' in d['did']['origination']:
-                ppl = parse_origination(d['did']['origination'], 'persname')
-            if 'corpname' in d['did']['origination']:
-                cor = parse_origination(d['did']['origination'], 'corpname')
-
+############ subject functions ############
 def fix_altrender(subject_type, subname):
     if type(subject_type[subname]) is not list and subject_type[subname]['@source'] == 'archiveswest':
         subject_type[subname]['@altrender'] = 'nodisplay'
@@ -115,16 +74,41 @@ def parse_controlaccess(subject_type):
         parse_origination(subject_type, 'persname')
     if 'corpname' in subject_type:
         parse_origination(subject_type, 'corpname')
+############ subject functions ############
+
+############ agent functions ############
+def read_agent_relators(text_file):
+    with open(text_file) as f:
+        content = f.readlines()
+        relators = {}
+        for line in content:
+            k,v = line.strip().split(': ')
+            relators[k] = v
+        return relators
+
+def correct_relator_abbreviations(name, relators):
+    if '@role' in name:
+        name['@role'] = relators[name['@role']].lower()
+
+def fix_agent_source(name):
+    if '@source' in name and name['@source'] != 'lcnaf':
+        if '@rules' in name and name['@rules'] == 'aacr2':
+            name.pop('@source')
+        else:
+            name['@rules'] = 'aacr2'
+            name.pop('@source')
 
 def parse_origination(origination, agent_type):
     creators_list = []
     if type(origination[agent_type]) != list:
         name = origination[agent_type]
         fix_agent_source(name)
+        correct_relator_abbreviations(name, relators)
         creators_list.append(name['#text'])
     else:
         for name in origination[agent_type]:
             fix_agent_source(name)
+            correct_relator_abbreviations(name, relators)
             creators_list.append(name['#text'])
     return '; '.join(creators_list)
 
@@ -140,20 +124,69 @@ def combine_multiple_creators(origination):
     creator['@encodinganalog'] = '100'
     creator['#text'] = all_creators
     return creator
+############ agent functions ############
+
+def parse_series(seriesidx):
+    # remove extra dao tags and make sure all scopecontent has a p tag
+    # remove digitization dates (dont show up in AW as different dates)
+    for d in series[seriesidx]['c02']:
+
+        if 'scopecontent' in d: 
+            if 'p' not in d['scopecontent'] and 'list' not in d['scopecontent']:
+                d['scopecontent']['p'] = {'p': d['scopecontent']['#text']}
+                d['scopecontent'].pop('#text')
+            if 'p' in d['scopecontent'] and type(d['scopecontent']['p']) is not list and 'Information Source: ' in d['scopecontent']['p']:
+                d.pop('scopecontent')
+            
+            expand_note(d, 'scopecontent', '5202_')
+
+        # move physdesc text to gen notes so it displays
+        if 'physdesc' in d['did']:
+                physdesc = d['did']['physdesc']
+                d['odd'] = {'@encodinganalog': '500',
+                            'p': physdesc}
+
+        # remove digitization dates for display purposes
+        if 'unitdate' in d['did']:
+            remove_digi(d, d['did']['unitdate'])
+
+        # correct name sources/rules as necessary for creators
+        if 'origination' in d['did']:
+            if type(d['did']['origination']) is not list:
+                if 'persname' in d['did']['origination']:
+                    parse_origination(d['did']['origination'], 'persname')
+                if 'corpname' in d['did']['origination']:
+                    parse_origination(d['did']['origination'], 'corpname')
+            else:
+                for o in d['did']['origination']:
+                    if 'persname' in o:
+                        parse_origination(o, 'persname')
+                    if 'corpname' in o:
+                        parse_origination(o, 'corpname')
+
+def write_EAD_xml(xmlstr, outfilename):
+    with open(outfilename, 'w') as outfile:
+        outfile.write(xmlstr[0:39])
+        outfile.write('<!DOCTYPE ead PUBLIC "+//ISBN 1-931666-00-8//DTD ead.dtd (Encoded Archival Description (EAD) Version 2002)//EN" "ead.dtd">')
+        outfile.write('\n')
+        outfile.write(xmlstr[39:])
 
 ############################################################
 
+# load file origin/destingation configuration
+config = configparser.ConfigParser()
+config.read('./data/EAD_settings.cfg')
+
+# load agent relators conversion
+relators = read_agent_relators('./data/agent_relators.txt')
+
 # load converted EAD
-filename = input("enter the name of the xml file converted using the archives west utility (e.g. converted_ead.xml): ")
+filename = input("enter the name of the xml file converted using the archives west utility stored in the Downloads folder (e.g. converted_ead.xml): ")
 
 repo = '2'
 
-with open('./data/'+filename) as fd:
-    doc = xmltodict.parse(fd.read())
-
-# fix agency codes (sometimes exported strangely)
-doc['ead']['eadheader']['eadid']['@mainagencycode'] = 'wauem'
-doc['ead']['archdesc']['did']['unitid']['@repositorycode'] = 'wauem'      
+with open(config['Paths']['origin']+filename) as fd:
+    doc = xmltodict.parse(fd.read())    
 
 # remove additional dates if exist for display
 # note: all ethno resources will have the creation date as the first date
@@ -229,6 +262,5 @@ xmlstr = re.sub('Reel\s\d{5}:\s', '', xmlstr)
 # also, converter or exporter incorrectly label some source elements as 'Library of Congress Subject Headings' when should be 'lcsh'
 xmlstr = xmlstr.replace('actuate=""', 'actuate="onrequest"').replace('Library of Congress Subject Headings', 'lcsh')
 
-output = input("enter the name your new EAD document to be output into the data folder (e.g. wau_eadname.xml): ")
-write_EAD_xml(xmlstr, './data/'+output)
+write_EAD_xml(xmlstr, config['Paths']['destination']+filename)
 print('EAD saved!')
