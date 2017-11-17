@@ -25,12 +25,12 @@ def parse_series(seriesidx):
 
         genres = []
         if 'controlaccess' in d:
-            if type(d['controlaccess']['genreform']) is list:
-                for g in d['controlaccess']['genreform']:
+            if type(d['controlaccess']['subject']) is list:
+                for g in d['controlaccess']['subject']:
                     genre = g['#text']
                     genres.append(genre)
             else:
-                genre = d['controlaccess']['genreform']['#text']
+                genre = d['controlaccess']['subject']['#text']
                 genres.append(genre)
 
         if 'odd' in d and genres != []:
