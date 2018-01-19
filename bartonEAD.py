@@ -140,6 +140,14 @@ def parse_series(seriesidx):
             
             expand_note(d, 'scopecontent', '5202_')
 
+        # add a reel unit id to each item if it is not there, based on the item's title
+        regexp = re.compile(r'Reel\s(\d{5}):\s')
+        if 'unitid' not in d['did'] and regexp.search(d['did']['unittitle']['#text']):
+        	reel_num = regexp.search(d['did']['unittitle']['#text']).group(1)
+        	print(reel_num)
+        	d['did']['unitid'] = 'barton_reel_'+reel_num
+        	print(d['did']['unitid'])
+
         # move physdesc text to gen notes so it displays
         if 'physdesc' in d['did']:
                 physdesc = d['did']['physdesc']
