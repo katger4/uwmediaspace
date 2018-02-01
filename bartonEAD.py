@@ -140,13 +140,11 @@ def parse_series(seriesidx):
             
             expand_note(d, 'scopecontent', '5202_')
 
-        # add a reel unit id to each item if it is not there, based on the item's title
+        # add a reel's unit id to each item if it is not there, based on the item's title
         regexp = re.compile(r'Reel\s(\d{5}):\s')
         if 'unitid' not in d['did'] and regexp.search(d['did']['unittitle']['#text']):
         	reel_num = regexp.search(d['did']['unittitle']['#text']).group(1)
-        	print(reel_num)
         	d['did']['unitid'] = 'barton_reel_'+reel_num
-        	print(d['did']['unitid'])
 
         # move physdesc text to gen notes so it displays
         if 'physdesc' in d['did']:
@@ -171,6 +169,9 @@ def parse_series(seriesidx):
                         parse_origination(o, 'persname')
                     if 'corpname' in o:
                         parse_origination(o, 'corpname')
+    
+    # sort items in series by unit id (if unit id exists)
+    series[seriesidx]['c02'] = sorted(series[seriesidx]['c02'], key=lambda k: ('unitid' not in k['did'], k['did'].get('unitid')))
 
 def write_EAD_xml(xmlstr, outfilename):
     with open(outfilename, 'w') as outfile:
@@ -256,6 +257,7 @@ while num_series > 0:
             seriesidx = idx
 
     parse_series(seriesidx)
+
     num_series -= 1
 
 # convert dict to xmlstring
